@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Image Overlay Viewer - GeoAI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: white;
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #e74c3c, #f39c12);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+        .control-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+        }
+        .image-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #3498db;
+            font-size: 1.1rem;
+        }
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #229954);
+        }
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+        .btn-danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+        }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .slider-container {
+            margin: 15px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        .image-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+        .image-display {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+            cursor: grab;
+            transition: transform 0.3s ease;
+        }
+        .image-display:active {
+            cursor: grabbing;
+        }
+        .navigation-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        .nav-btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            min-width: 100px;
+        }
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        .stats-display {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        .stats-item {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .stats-number {
+            font-weight: bold;
+            color: #3498db;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-drop-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .file-drop-zone:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        .file-drop-zone.dragover {
+            border-color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+        }
+        .status-approved {
+            background: #27ae60;
+            color: white;
+        }
+        .status-rejected {
+            background: #e74c3c;
+            color: white;
+        }
+        .status-skipped {
+            background: #f39c12;
+            color: white;
+        }
+        .status-pending {
+            background: #95a5a6;
+            color: white;
+        }
+        .current-status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #3498db;
+        }
+        .session-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .keyboard-shortcuts {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 15px;
+        }
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+        .shortcut-key {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            .control-panel {
+                order: 2;
+                max-height: 50vh;
+            }
+            .image-panel {
+                order: 1;
+                min-height: 40vh;
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+            .navigation-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .nav-btn {
+                width: 100%;
+                margin: 5px 0;
+            }
+            .container {
+                padding: 10px;
+            }
+            .session-controls {
+                flex-direction: column;
+            }
+        }
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            .btn {
+                padding: 10px 15px;
+                font-size: 13px;
+            }
+            .control-group {
+                padding: 10px;
+                margin-bottom: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔬 Modern Image Overlay Viewer</h1>
+            <p>Advanced image analysis tool for GeoAI research</p>
+        </div>
+        <div class="main-content">
+            <div class="control-panel">
+                <div class="control-group">
+                    <h3>📁 Load Data</h3>
+                    <div class="file-drop-zone" id="imageDropZone">
+                        <p>📸 Drop images here or click to browse</p>
+                        <input type="file" id="imageInput" class="file-input" multiple accept="image/*">
+                    </div>
+                    <div class="progress-bar" id="imageLoadProgress" style="display: none;">
+                        <div class="progress-fill" id="imageProgressFill"></div>
+                    </div>
+                    <div id="imageLoadStatus" style="font-size: 12px; color: #bdc3c7; margin-top: 5px;"></div>
+                    
+                    <div class="file-drop-zone" id="maskDropZone">
+                        <p>🎭 Drop masks here or click to browse</p>
+                        <input type="file" id="maskInput" class="file-input" multiple accept="image/*">
+                    </div>
+                    <div class="progress-bar" id="maskLoadProgress" style="display: none;">
+                        <div class="progress-fill" id="maskProgressFill"></div>
+                    </div>
+                    <div id="maskLoadStatus" style="font-size: 12px; color: #bdc3c7; margin-top: 5px;"></div>
+                </div>
+                <div class="control-group">
+                    <h3>💾 Session Management</h3>
+                    <div class="session-controls">
+                        <button class="btn btn-success btn-small" id="saveSessionBtn">💾 Save</button>
+                        <button class="btn btn-secondary btn-small" id="loadSessionBtn">📂 Load</button>
+                        <button class="btn btn-warning btn-small" id="newSessionBtn">🔄 New</button>
+                    </div>
+                    <input type="file" id="sessionInput" class="file-input" accept=".json">
+                    <div id="sessionStatus" style="font-size: 12px; color: #bdc3c7; margin-top: 5px;"></div>
+                </div>
+                <div class="control-group">
+                    <h3>📋 Current Image Status</h3>
+                    <div class="current-status" id="currentImageStatus">
+                        <div id="statusDisplay">No image selected</div>
+                        <div id="statusActions" style="margin-top: 10px; display: none;">
+                            <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
+                            <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
+                            <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
+                            <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>🎛️ Overlay Controls</h3>
+                    <div class="slider-container">
+                        <label for="transparencySlider">Transparency: <span id="transparencyValue">50%</span></label>
+                        <input type="range" id="transparencySlider" class="slider" min="0" max="100" value="50">
+                    </div>
+                    <div class="slider-container">
+                        <label for="zoomSlider">Zoom: <span id="zoomValue">100%</span></label>
+                        <input type="range" id="zoomSlider" class="slider" min="10" max="500" value="100">
+                    </div>
+                    <div class="slider-container">
+                        <label for="buildingColorPicker">Building Color:</label>
+                        <input type="color" id="buildingColorPicker" value="#ff0000" style="width: 100%; height: 35px; border: none; border-radius: 5px; cursor: pointer;">
+                    </div>
+                    <div class="slider-container">
+                        <label for="nonBuildingColorPicker">Non-Building Color:</label>
+                        <input type="color" id="nonBuildingColorPicker" value="#000000" style="width: 100%; height: 35px; border: none; border-radius: 5px; cursor: pointer;">
+                    </div>
+                    <div class="slider-container">
+                        <label>
+                            <input type="checkbox" id="invertMaskCheckbox" style="margin-right: 8px;">
+                            Invert Mask Colors
+                        </label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>🎲 Random Subset</h3>
+                    <div class="slider-container">
+                        <label for="percentageSlider">Percentage: <span id="percentageValue">20%</span></label>
+                        <input type="range" id="percentageSlider" class="slider" min="1" max="100" value="20">
+                    </div>
+                    <button class="btn btn-warning" id="createSubsetBtn" disabled>Create Random Subset</button>
+                    <div class="progress-bar" id="progressBar" style="display: none;">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>📊 Statistics</h3>
+                    <div class="stats-display" id="statsDisplay">
+                        <div class="stats-item">Current: <span class="stats-number" id="currentIndex">0</span>/<span class="stats-number" id="totalImages">0</span></div>
+                        <div class="stats-item">Approved: <span class="stats-number" id="approvedCount">0</span></div>
+                        <div class="stats-item">Rejected: <span class="stats-number" id="rejectedCount">0</span></div>
+                        <div class="stats-item">Skipped: <span class="stats-number" id="skippedCount">0</span></div>
+                        <div class="stats-item">Pending: <span class="stats-number" id="pendingCount">0</span></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <h3>🎮 Navigation</h3>
+                    <button class="btn btn-success" id="prevBtn" disabled>⬅️ Previous</button>
+                    <button class="btn btn-success" id="nextBtn" disabled>➡️ Next</button>
+                    <button class="btn btn-secondary" id="exportBtn" disabled>💾 Export View</button>
+                    <button class="btn btn-secondary" id="exportResultsBtn" disabled>📊 Export Results</button>
+                </div>
+                <div class="control-group">
+                    <h3>⌨️ Shortcuts</h3>
+                    <div class="keyboard-shortcuts">
+                        <div class="shortcut-item">
+                            <span>Previous</span>
+                            <span class="shortcut-key">←</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span>Next</span>
+                            <span class="shortcut-key">→</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span>Approve</span>
+                            <span class="shortcut-key">A</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span>Reject</span>
+                            <span class="shortcut-key">R</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span>Skip</span>
+                            <span class="shortcut-key">S</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span>Reset Zoom</span>
+                            <span class="shortcut-key">Z</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="image-panel">
+                <div class="image-container" id="imageContainer">
+                    <canvas id="imageCanvas" class="image-display"></canvas>
+                </div>
+                <div class="navigation-bar">
+                    <button class="nav-btn" id="navPrevBtn" disabled>⬅️ Previous</button>
+                    <div>
+                        <span id="imageInfo">Select images to start</span>
+                    </div>
+                    <button class="nav-btn" id="navNextBtn" disabled>➡️ Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script>
+        class ModernImageOverlayApp {
+            constructor() {
+                this.images = [];
+                this.masks = [];
+                this.currentIndex = 0;
+                this.transparency = 0.5;
+                this.zoom = 1.0;
+                this.panX = 0;
+                this.panY = 0;
+                this.isDragging = false;
+                this.lastMousePos = { x: 0, y: 0 };
+                
+                // Color settings
+                this.buildingColor = { r: 255, g: 0, b: 0 }; // Red for buildings
+                this.nonBuildingColor = { r: 0, g: 0, b: 0 }; // Black for non-buildings
+                this.invertMask = false;
+                
+                // Session data - stores image classifications without moving files
+                this.sessionData = {
+                    sessionId: this.generateSessionId(),
+                    createdAt: new Date().toISOString(),
+                    classifications: {}, // filename: {status: 'approved/rejected/skipped', timestamp: '...', notes: ''}
+                    settings: {}
+                };
+                
+                this.stats = {
+                    approved: 0,
+                    rejected: 0,
+                    skipped: 0,
+                    pending: 0,
+                    total: 0
+                };
+                
+                this.canvas = document.getElementById('imageCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.setupEventListeners();
+                this.setupTouchEvents();
+                this.updateUI();
+                this.updateSessionStatus();
+            }
+            
+            generateSessionId() {
+                return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            }
+            
+            setupEventListeners() {
+                // File inputs
+                document.getElementById('imageInput').addEventListener('change', (e) => this.loadImages(e.target.files));
+                document.getElementById('maskInput').addEventListener('change', (e) => this.loadMasks(e.target.files));
+                
+                // Session management
+                document.getElementById('saveSessionBtn').addEventListener('click', () => this.saveSession());
+                document.getElementById('loadSessionBtn').addEventListener('click', () => document.getElementById('sessionInput').click());
+                document.getElementById('sessionInput').addEventListener('change', (e) => this.loadSession(e.target.files[0]));
+                document.getElementById('newSessionBtn').addEventListener('click', () => this.newSession());
+                
+                // Status actions
+                document.getElementById('approveBtn').addEventListener('click', () => this.setImageStatus('approved'));
+                document.getElementById('rejectBtn').addEventListener('click', () => this.setImageStatus('rejected'));
+                document.getElementById('skipCurrentBtn').addEventListener('click', () => this.setImageStatus('skipped'));
+                document.getElementById('clearStatusBtn').addEventListener('click', () => this.clearImageStatus());
+                
+                // Drop zones
+                this.setupDropZone('imageDropZone', 'imageInput');
+                this.setupDropZone('maskDropZone', 'maskInput');
+                
+                // Sliders
+                document.getElementById('transparencySlider').addEventListener('input', (e) => {
+                    this.transparency = e.target.value / 100;
+                    document.getElementById('transparencyValue').textContent = e.target.value + '%';
+                    this.drawImage();
+                });
+                
+                document.getElementById('zoomSlider').addEventListener('input', (e) => {
+                    this.zoom = e.target.value / 100;
+                    document.getElementById('zoomValue').textContent = e.target.value + '%';
+                    this.drawImage();
+                });
+                
+                document.getElementById('percentageSlider').addEventListener('input', (e) => {
+                    document.getElementById('percentageValue').textContent = e.target.value + '%';
+                });
+                
+                // Color picker events
+                document.getElementById('buildingColorPicker').addEventListener('change', (e) => {
+                    const color = this.hexToRgb(e.target.value);
+                    this.buildingColor = color;
+                    this.drawImage();
+                });
+                
+                document.getElementById('nonBuildingColorPicker').addEventListener('change', (e) => {
+                    const color = this.hexToRgb(e.target.value);
+                    this.nonBuildingColor = color;
+                    this.drawImage();
+                });
+                
+                document.getElementById('invertMaskCheckbox').addEventListener('change', (e) => {
+                    this.invertMask = e.target.checked;
+                    this.drawImage();
+                });
+                
+                // Buttons
+                document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
+                document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportView());
+                document.getElementById('exportResultsBtn').addEventListener('click', () => this.exportResults());
+                document.getElementById('createSubsetBtn').addEventListener('click', () => this.createRandomSubset());
+                
+                // Navigation bar buttons
+                document.getElementById('navPrevBtn').addEventListener('click', () => this.previousImage());
+                document.getElementById('navNextBtn').addEventListener('click', () => this.nextImage());
+                
+                // Canvas events
+                this.canvas.addEventListener('mousedown', (e) => this.startDrag(e));
+                this.canvas.addEventListener('mousemove', (e) => this.drag(e));
+                this.canvas.addEventListener('mouseup', () => this.endDrag());
+                this.canvas.addEventListener('wheel', (e) => this.handleZoom(e));
+                
+                // Keyboard shortcuts
+                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+                
+                // Window resize
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+            
+            setupTouchEvents() {
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.startDrag({
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                });
+                
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    this.drag({
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    });
+                });
+                
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.endDrag();
+                });
+                
+                // Pinch to zoom
+                let lastDistance = 0;
+                this.canvas.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 2) {
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        lastDistance = Math.sqrt(dx * dx + dy * dy);
+                    }
+                });
+                
+                this.canvas.addEventListener('touchmove', (e) => {
+                    if (e.touches.length === 2) {
+                        e.preventDefault();
+                        const dx = e.touches[0].clientX - e.touches[1].clientX;
+                        const dy = e.touches[0].clientY - e.touches[1].clientY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (lastDistance > 0) {
+                            const scale = distance / lastDistance;
+                            this.zoom *= scale;
+                            this.zoom = Math.max(0.1, Math.min(5, this.zoom));
+                            document.getElementById('zoomSlider').value = this.zoom * 100;
+                            document.getElementById('zoomValue').textContent = Math.round(this.zoom * 100) + '%';
+                            this.drawImage();
+                        }
+                        lastDistance = distance;
+                    }
+                });
+            }
+            
+            setupDropZone(dropZoneId, inputId) {
+                const dropZone = document.getElementById(dropZoneId);
+                const input = document.getElementById(inputId);
+                
+                dropZone.addEventListener('click', () => input.click());
+                
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                });
+                
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('dragover');
+                });
+                
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    
+                    const files = Array.from(e.dataTransfer.files).filter(file => 
+                        file.type.startsWith('image/')
+                    );
+                    
+                    if (dropZoneId === 'imageDropZone') {
+                        this.loadImages(files);
+                    } else {
+                        this.loadMasks(files);
+                    }
+                });
+            }
+            
+            async loadImages(files) {
+                const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+                if (!imageFiles.length) return;
+                
+                // Show progress bar
+                const progressBar = document.getElementById('imageLoadProgress');
+                const progressFill = document.getElementById('imageProgressFill');
+                const statusDiv = document.getElementById('imageLoadStatus');
+                
+                progressBar.style.display = 'block';
+                progressFill.style.width = '0%';
+                statusDiv.textContent = 'Loading images...';
+                
+                this.images = [];
+                
+                for (let i = 0; i < imageFiles.length; i++) {
+                    const file = imageFiles[i];
+                    const img = new Image();
+                    const url = URL.createObjectURL(file);
+                    
+                    statusDiv.textContent = `Loading image ${i + 1}/${imageFiles.length}: ${file.name}`;
+                    
+                    await new Promise((resolve) => {
+                        img.onload = () => {
+                            this.images.push({
+                                img: img,
+                                name: file.name,
+                                url: url
+                            });
+                            
+                            // Update progress
+                            const progress = ((i + 1) / imageFiles.length) * 100;
+                            progressFill.style.width = progress + '%';
+                            
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            console.error(`Failed to load image: ${file.name}`);
+                            resolve();
+                        };
+                        img.src = url;
+                    });
+                    
+                    // Small delay to show progress smoothly
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+                statusDiv.textContent = `✅ Loaded ${this.images.length} images`;
+                
+                this.images.sort((a, b) => a.name.localeCompare(b.name));
+                this.currentIndex = 0;
+                this.stats.total = this.images.length;
+                
+                // Update session data with new images
+                this.updateSessionWithImages();
+                
+                this.showToast(`Loaded ${this.images.length} images`);
+                this.updateUI();
+                this.resizeCanvas();
+                this.drawImage();
+            }
+            
+            async loadMasks(files) {
+                const maskFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+                if (!maskFiles.length) return;
+                
+                // Show progress bar
+                const progressBar = document.getElementById('maskLoadProgress');
+                const progressFill = document.getElementById('maskProgressFill');
+                const statusDiv = document.getElementById('maskLoadStatus');
+                
+                progressBar.style.display = 'block';
+                progressFill.style.width = '0%';
+                statusDiv.textContent = 'Loading masks...';
+                
+                this.masks = [];
+                
+                for (let i = 0; i < maskFiles.length; i++) {
+                    const file = maskFiles[i];
+                    const img = new Image();
+                    const url = URL.createObjectURL(file);
+                    
+                    statusDiv.textContent = `Loading mask ${i + 1}/${maskFiles.length}: ${file.name}`;
+                    
+                    await new Promise((resolve) => {
+                        img.onload = () => {
+                            this.masks.push({
+                                img: img,
+                                name: file.name,
+                                url: url
+                            });
+                            
+                            // Update progress
+                            const progress = ((i + 1) / maskFiles.length) * 100;
+                            progressFill.style.width = progress + '%';
+                            
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            console.error(`Failed to load mask: ${file.name}`);
+                            resolve();
+                        };
+                        img.src = url;
+                    });
+                    
+                    // Small delay to show progress smoothly
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                // Hide progress bar
+                progressBar.style.display = 'none';
+                statusDiv.textContent = `✅ Loaded ${this.masks.length} masks`;
+                
+                this.masks.sort((a, b) => a.name.localeCompare(b.name));
+                
+                this.showToast(`Loaded ${this.masks.length} masks`);
+                this.updateUI();
+                this.drawImage();
+            }
+            
+            updateSessionWithImages() {
+                // Initialize classifications for new images
+                this.images.forEach(image => {
+                    if (!this.sessionData.classifications[image.name]) {
+                        this.sessionData.classifications[image.name] = {
+                            status: 'pending',
+                            timestamp: null,
+                            notes: ''
+                        };
+                    }
+                });
+                this.updateStats();
+                this.updateSessionStatus();
+            }
+            
+            newSession() {
+                if (Object.keys(this.sessionData.classifications).length > 0) {
+                    if (!confirm('Are you sure you want to start a new session? All current progress will be lost.')) {
+                        return;
+                    }
+                }
+                
+                this.sessionData = {
+                    sessionId: this.generateSessionId(),
+                    createdAt: new Date().toISOString(),
+                    classifications: {},
+                    settings: {}
+                };
+                
+                this.stats = {
+                    approved: 0,
+                    rejected: 0,
+                    skipped: 0,
+                    pending: 0,
+                    total: 0
+                };
+                
+                this.updateSessionWithImages();
+                this.updateUI();
+                this.showToast('New session started');
+            }
+            
+            saveSession() {
+                if (!this.images.length) {
+                    this.showToast('No data to save');
+                    return;
+                }
+                
+                // Update session settings
+                this.sessionData.settings = {
+                    buildingColor: this.buildingColor,
+                    nonBuildingColor: this.nonBuildingColor,
+                    invertMask: this.invertMask,
+                    transparency: this.transparency
+                };
+                
+                this.sessionData.lastSaved = new Date().toISOString();
+                
+                const dataStr = JSON.stringify(this.sessionData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `image_analysis_session_${this.sessionData.sessionId}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                this.showToast('Session saved successfully');
+                this.updateSessionStatus();
+            }
+            
+            loadSession(file) {
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const sessionData = JSON.parse(e.target.result);
+                        
+                        // Validate session data structure
+                        if (!sessionData.classifications || !sessionData.sessionId) {
+                            throw new Error('Invalid session file format');
+                        }
+                        
+                        this.sessionData = sessionData;
+                        
+                        // Restore settings if available
+                        if (sessionData.settings) {
+                            if (sessionData.settings.buildingColor) {
+                                this.buildingColor = sessionData.settings.buildingColor;
+                                document.getElementById('buildingColorPicker').value = this.rgbToHex(this.buildingColor);
+                            }
+                            if (sessionData.settings.nonBuildingColor) {
+                                this.nonBuildingColor = sessionData.settings.nonBuildingColor;
+                                document.getElementById('nonBuildingColorPicker').value = this.rgbToHex(this.nonBuildingColor);
+                            }
+                            if (sessionData.settings.invertMask !== undefined) {
+                                this.invertMask = sessionData.settings.invertMask;
+                                document.getElementById('invertMaskCheckbox').checked = this.invertMask;
+                            }
+                            if (sessionData.settings.transparency !== undefined) {
+                                this.transparency = sessionData.settings.transparency;
+                                document.getElementById('transparencySlider').value = this.transparency * 100;
+                                document.getElementById('transparencyValue').textContent = Math.round(this.transparency * 100) + '%';
+                            }
+                        }
+                        
+                        this.updateStats();
+                        this.updateUI();
+                        this.updateSessionStatus();
+                        this.drawImage();
+                        
+                        this.showToast(`Session loaded: ${Object.keys(sessionData.classifications).length} images`);
+                        
+                    } catch (error) {
+                        console.error('Error loading session:', error);
+                        this.showToast('Error loading session file');
+                    }
+                };
+                reader.readAsText(file);
+            }
+            
+            setImageStatus(status) {
+                if (!this.images.length || this.currentIndex >= this.images.length) return;
+                
+                const currentImage = this.images[this.currentIndex];
+                this.sessionData.classifications[currentImage.name] = {
+                    status: status,
+                    timestamp: new Date().toISOString(),
+                    notes: ''
+                };
+                
+                this.updateStats();
+                this.updateCurrentImageStatus();
+                this.updateUI();
+                
+                this.showToast(`Image ${status}`);
+            }
+            
+            clearImageStatus() {
+                if (!this.images.length || this.currentIndex >= this.images.length) return;
+                
+                const currentImage = this.images[this.currentIndex];
+                this.sessionData.classifications[currentImage.name] = {
+                    status: 'pending',
+                    timestamp: null,
+                    notes: ''
+                };
+                
+                this.updateStats();
+                this.updateCurrentImageStatus();
+                this.updateUI();
+                
+                this.showToast('Status cleared');
+            }
+            
+            updateStats() {
+                this.stats = {
+                    approved: 0,
+                    rejected: 0,
+                    skipped: 0,
+                    pending: 0,
+                    total: this.images.length
+                };
+                
+                Object.values(this.sessionData.classifications).forEach(classification => {
+                    this.stats[classification.status]++;
+                });
+            }
+            
+            updateCurrentImageStatus() {
+                const statusDisplay = document.getElementById('statusDisplay');
+                const statusActions = document.getElementById('statusActions');
+                
+                if (!this.images.length || this.currentIndex >= this.images.length) {
+                    statusDisplay.textContent = 'No image selected';
+                    statusActions.style.display = 'none';
+                    return;
+                }
+                
+                const currentImage = this.images[this.currentIndex];
+                const classification = this.sessionData.classifications[currentImage.name];
+                
+                if (classification) {
+                    const statusClass = `status-${classification.status}`;
+                    const statusText = classification.status.charAt(0).toUpperCase() + classification.status.slice(1);
+                    const timestamp = classification.timestamp ? new Date(classification.timestamp).toLocaleString() : '';
+                    
+                    statusDisplay.innerHTML = `
+                        <div>Status: <span class="status-indicator ${statusClass}">${statusText}</span></div>
+                        ${timestamp ? `<div style="font-size: 11px; opacity: 0.7;">Updated: ${timestamp}</div>` : ''}
+                    `;
+                } else {
+                    statusDisplay.innerHTML = '<div>Status: <span class="status-indicator status-pending">Pending</span></div>';
+                }
+                
+                statusActions.style.display = 'block';
+            }
+            
+            updateSessionStatus() {
+                const sessionStatus = document.getElementById('sessionStatus');
+                const totalClassified = this.stats.approved + this.stats.rejected + this.stats.skipped;
+                const totalImages = this.stats.total;
+                
+                if (totalImages > 0) {
+                    const progress = Math.round((totalClassified / totalImages) * 100);
+                    sessionStatus.textContent = `Progress: ${totalClassified}/${totalImages} (${progress}%)`;
+                } else {
+                    sessionStatus.textContent = 'No images loaded';
+                }
+            }
+            
+            exportResults() {
+                if (!this.images.length) {
+                    this.showToast('No data to export');
+                    return;
+                }
+                
+                const results = {
+                    sessionInfo: {
+                        sessionId: this.sessionData.sessionId,
+                        createdAt: this.sessionData.createdAt,
+                        exportedAt: new Date().toISOString(),
+                        totalImages: this.stats.total
+                    },
+                    summary: this.stats,
+                    details: []
+                };
+                
+                // Create detailed results
+                this.images.forEach((image, index) => {
+                    const classification = this.sessionData.classifications[image.name] || { status: 'pending' };
+                    results.details.push({
+                        index: index + 1,
+                        filename: image.name,
+                        status: classification.status,
+                        timestamp: classification.timestamp,
+                        notes: classification.notes || ''
+                    });
+                });
+                
+                const dataStr = JSON.stringify(results, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `image_analysis_results_${this.sessionData.sessionId}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                this.showToast('Results exported successfully');
+            }
+            
+            resizeCanvas() {
+                const container = document.getElementById('imageContainer');
+                const rect = container.getBoundingClientRect();
+                this.canvas.width = rect.width - 40;
+                this.canvas.height = rect.height - 40;
+                this.drawImage();
+            }
+            
+            drawImage() {
+                if (!this.images.length || this.currentIndex >= this.images.length) {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '16px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('No images loaded', this.canvas.width / 2, this.canvas.height / 2);
+                    return;
+                }
+                
+                const currentImage = this.images[this.currentIndex];
+                const currentMask = this.masks[this.currentIndex];
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Calculate image size and position
+                const img = currentImage.img;
+                const scale = Math.min(
+                    (this.canvas.width * 0.9) / img.width,
+                    (this.canvas.height * 0.9) / img.height
+                ) * this.zoom;
+                
+                const drawWidth = img.width * scale;
+                const drawHeight = img.height * scale;
+                const drawX = (this.canvas.width - drawWidth) / 2 + this.panX;
+                const drawY = (this.canvas.height - drawHeight) / 2 + this.panY;
+                
+                // Draw image
+                this.ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+                
+                // Draw mask overlay if available with custom colors
+                if (currentMask) {
+                    // Create a temporary canvas to process the mask
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = drawWidth;
+                    tempCanvas.height = drawHeight;
+                    
+                    // Draw the mask to temp canvas
+                    tempCtx.drawImage(currentMask.img, 0, 0, drawWidth, drawHeight);
+                    
+                    // Get mask pixel data
+                    const imageData = tempCtx.getImageData(0, 0, drawWidth, drawHeight);
+                    const data = imageData.data;
+                    
+                    // Process each pixel to apply custom colors
+                    for (let i = 0; i < data.length; i += 4) {
+                        const grayValue = data[i]; // Assuming grayscale mask
+                        
+                        let targetColor;
+                        if (this.invertMask) {
+                            // Invert: white becomes non-building, black becomes building
+                            targetColor = grayValue > 127 ? this.nonBuildingColor : this.buildingColor;
+                        } else {
+                            // Normal: white becomes building, black becomes non-building
+                            targetColor = grayValue > 127 ? this.buildingColor : this.nonBuildingColor;
+                        }
+                        
+                        data[i] = targetColor.r;     // Red
+                        data[i + 1] = targetColor.g; // Green
+                        data[i + 2] = targetColor.b; // Blue
+                        // Alpha stays the same (data[i + 3])
+                    }
+                    
+                    // Put the processed data back
+                    tempCtx.putImageData(imageData, 0, 0);
+                    
+                    // Draw the colored mask overlay
+                    this.ctx.globalAlpha = this.transparency;
+                    this.ctx.drawImage(tempCanvas, drawX, drawY);
+                    this.ctx.globalAlpha = 1.0;
+                }
+            }
+            
+            hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : { r: 255, g: 0, b: 0 };
+            }
+            
+            rgbToHex(rgb) {
+                return "#" + ((1 << 24) + (rgb.r << 16) + (rgb.g << 8) + rgb.b).toString(16).slice(1);
+            }
+            
+            startDrag(e) {
+                this.isDragging = true;
+                this.lastMousePos = {
+                    x: e.clientX,
+                    y: e.clientY
+                };
+                this.canvas.style.cursor = 'grabbing';
+            }
+            
+            drag(e) {
+                if (!this.isDragging) return;
+                
+                const deltaX = e.clientX - this.lastMousePos.x;
+                const deltaY = e.clientY - this.lastMousePos.y;
+                
+                this.panX += deltaX;
+                this.panY += deltaY;
+                
+                this.lastMousePos = {
+                    x: e.clientX,
+                    y: e.clientY
+                };
+                
+                this.drawImage();
+            }
+            
+            endDrag() {
+                this.isDragging = false;
+                this.canvas.style.cursor = 'grab';
+            }
+            
+            handleZoom(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                this.zoom *= delta;
+                this.zoom = Math.max(0.1, Math.min(5, this.zoom));
+                
+                document.getElementById('zoomSlider').value = this.zoom * 100;
+                document.getElementById('zoomValue').textContent = Math.round(this.zoom * 100) + '%';
+                
+                this.drawImage();
+            }
+            
+            handleKeyboard(e) {
+                switch(e.key.toLowerCase()) {
+                    case 'arrowleft':
+                        e.preventDefault();
+                        this.previousImage();
+                        break;
+                    case 'arrowright':
+                        e.preventDefault();
+                        this.nextImage();
+                        break;
+                    case 'a':
+                        if (!e.ctrlKey) {
+                            e.preventDefault();
+                            this.setImageStatus('approved');
+                        }
+                        break;
+                    case 'r':
+                        if (!e.ctrlKey) {
+                            e.preventDefault();
+                            this.setImageStatus('rejected');
+                        }
+                        break;
+                    case 's':
+                        if (!e.ctrlKey) {
+                            e.preventDefault();
+                            this.setImageStatus('skipped');
+                        }
+                        break;
+                    case 'z':
+                        if (!e.ctrlKey) {
+                            e.preventDefault();
+                            this.resetView();
+                        }
+                        break;
+                }
+            }
+            
+            previousImage() {
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                    this.resetView();
+                    this.drawImage();
+                    this.updateUI();
+                    this.updateCurrentImageStatus();
+                }
+            }
+            
+            nextImage() {
+                if (this.currentIndex < this.images.length - 1) {
+                    this.currentIndex++;
+                    this.resetView();
+                    this.drawImage();
+                    this.updateUI();
+                    this.updateCurrentImageStatus();
+                }
+            }
+            
+            resetView() {
+                this.zoom = 1.0;
+                this.panX = 0;
+                this.panY = 0;
+                document.getElementById('zoomSlider').value = 100;
+                document.getElementById('zoomValue').textContent = '100%';
+            }
+            
+            createRandomSubset() {
+                if (!this.images.length) {
+                    this.showToast('No images loaded');
+                    return;
+                }
+                
+                const percentage = document.getElementById('percentageSlider').value;
+                const count = Math.max(1, Math.floor(this.images.length * (percentage / 100)));
+                
+                if (count >= this.images.length) {
+                    this.showToast('Percentage too high - using all images');
+                    return;
+                }
+                
+                // Show progress
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                progressBar.style.display = 'block';
+                
+                // Create random indices
+                const indices = [];
+                while (indices.length < count) {
+                    const randomIndex = Math.floor(Math.random() * this.images.length);
+                    if (!indices.includes(randomIndex)) {
+                        indices.push(randomIndex);
+                    }
+                }
+                
+                indices.sort((a, b) => a - b);
+                
+                // Create subset
+                const newImages = [];
+                const newMasks = [];
+                
+                let processIndex = 0;
+                const processNext = () => {
+                    if (processIndex >= indices.length) {
+                        // Update arrays
+                        this.images = newImages;
+                        this.masks = newMasks;
+                        this.currentIndex = 0;
+                        
+                        // Update session with subset
+                        this.newSession(); // Start fresh session for subset
+                        this.updateSessionWithImages();
+                        
+                        // Hide progress
+                        progressBar.style.display = 'none';
+                        progressFill.style.width = '0%';
+                        
+                        this.showToast(`Created subset with ${count} images`);
+                        this.updateUI();
+                        this.drawImage();
+                        return;
+                    }
+                    
+                    const index = indices[processIndex];
+                    newImages.push(this.images[index]);
+                    if (this.masks[index]) {
+                        newMasks.push(this.masks[index]);
+                    }
+                    
+                    // Update progress
+                    const progress = ((processIndex + 1) / indices.length) * 100;
+                    progressFill.style.width = progress + '%';
+                    
+                    processIndex++;
+                    setTimeout(processNext, 50);
+                };
+                
+                processNext();
+            }
+            
+            exportView() {
+                if (!this.images.length) {
+                    this.showToast('No image to export');
+                    return;
+                }
+                
+                // Create a temporary canvas for export
+                const exportCanvas = document.createElement('canvas');
+                const exportCtx = exportCanvas.getContext('2d');
+                
+                const currentImage = this.images[this.currentIndex];
+                const currentMask = this.masks[this.currentIndex];
+                
+                exportCanvas.width = currentImage.img.width;
+                exportCanvas.height = currentImage.img.height;
+                
+                // Draw image
+                exportCtx.drawImage(currentImage.img, 0, 0);
+                
+                // Draw mask overlay with custom colors if available
+                if (currentMask) {
+                    // Create temporary canvas for mask processing
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = currentImage.img.width;
+                    tempCanvas.height = currentImage.img.height;
+                    
+                    // Draw mask
+                    tempCtx.drawImage(currentMask.img, 0, 0, currentImage.img.width, currentImage.img.height);
+                    
+                    // Get and process pixel data
+                    const imageData = tempCtx.getImageData(0, 0, currentImage.img.width, currentImage.img.height);
+                    const data = imageData.data;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        const grayValue = data[i];
+                        let targetColor;
+                        
+                        if (this.invertMask) {
+                            targetColor = grayValue > 127 ? this.nonBuildingColor : this.buildingColor;
+                        } else {
+                            targetColor = grayValue > 127 ? this.buildingColor : this.nonBuildingColor;
+                        }
+                        
+                        data[i] = targetColor.r;
+                        data[i + 1] = targetColor.g;
+                        data[i + 2] = targetColor.b;
+                    }
+                    
+                    tempCtx.putImageData(imageData, 0, 0);
+                    
+                    // Apply overlay
+                    exportCtx.globalAlpha = this.transparency;
+                    exportCtx.drawImage(tempCanvas, 0, 0);
+                    exportCtx.globalAlpha = 1.0;
+                }
+                
+                // Download the image
+                exportCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `overlay_export_${this.currentIndex + 1}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    this.showToast('View exported successfully');
+                });
+            }
+            
+            updateUI() {
+                const hasImages = this.images.length > 0;
+                
+                // Update navigation buttons
+                document.getElementById('prevBtn').disabled = !hasImages || this.currentIndex <= 0;
+                document.getElementById('nextBtn').disabled = !hasImages || this.currentIndex >= this.images.length - 1;
+                document.getElementById('navPrevBtn').disabled = !hasImages || this.currentIndex <= 0;
+                document.getElementById('navNextBtn').disabled = !hasImages || this.currentIndex >= this.images.length - 1;
+                
+                // Update action buttons
+                document.getElementById('exportBtn').disabled = !hasImages;
+                document.getElementById('exportResultsBtn').disabled = !hasImages;
+                document.getElementById('createSubsetBtn').disabled = !hasImages;
+                
+                // Update statistics
+                document.getElementById('currentIndex').textContent = hasImages ? this.currentIndex + 1 : 0;
+                document.getElementById('totalImages').textContent = this.images.length;
+                document.getElementById('approvedCount').textContent = this.stats.approved;
+                document.getElementById('rejectedCount').textContent = this.stats.rejected;
+                document.getElementById('skippedCount').textContent = this.stats.skipped;
+                document.getElementById('pendingCount').textContent = this.stats.pending;
+                
+                // Update image info
+                const imageInfo = document.getElementById('imageInfo');
+                if (hasImages) {
+                    const currentImage = this.images[this.currentIndex];
+                    imageInfo.textContent = `${currentImage.name} (${this.currentIndex + 1}/${this.images.length})`;
+                } else {
+                    imageInfo.textContent = 'No images loaded';
+                }
+                
+                this.updateCurrentImageStatus();
+                this.updateSessionStatus();
+            }
+            
+            showToast(message) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new ModernImageOverlayApp();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                setTimeout(() => app.resizeCanvas(), 100);
+            });
+            
+            // Initial canvas resize
+            setTimeout(() => app.resizeCanvas(), 100);
+        });
+    </script>
+</body>
+</html>
