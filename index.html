@@ -470,6 +470,26 @@
                     <button class="btn btn-secondary" id="exportResultsBtn" disabled>📊 Export Results</button>
                 </div>
                 <div class="control-group">
+                    <h3>📦 Download Complete Project</h3>
+                    <button class="btn btn-warning" id="downloadProjectBtn" disabled>📥 Download Sorted Project</button>
+                    <div class="progress-bar" id="downloadProgress" style="display: none;">
+                        <div class="progress-fill" id="downloadProgressFill"></div>
+                    </div>
+                    <div id="downloadStatus" style="font-size: 12px; color: #bdc3c7; margin-top: 5px;">Packages images, masks, and results into organized folders</div>
+                    <div style="margin-top: 10px;">
+                        <label style="font-size: 12px;">
+                            <input type="checkbox" id="includeMasksInDownload" checked style="margin-right: 5px;">
+                            Include masks in download
+                        </label>
+                    </div>
+                    <div style="margin-top: 5px;">
+                        <label style="font-size: 12px;">
+                            <input type="checkbox" id="includeOverlaysInDownload" style="margin-right: 5px;">
+                            Include overlay images
+                        </label>
+                    </div>
+                </div>
+                <div class="control-group">
                     <h3>⌨️ Shortcuts</h3>
                     <div class="keyboard-shortcuts">
                         <div class="shortcut-item">
@@ -623,6 +643,7 @@
                 document.getElementById('exportBtn').addEventListener('click', () => this.exportView());
                 document.getElementById('exportResultsBtn').addEventListener('click', () => this.exportResults());
                 document.getElementById('createSubsetBtn').addEventListener('click', () => this.createRandomSubset());
+                document.getElementById('downloadProjectBtn').addEventListener('click', () => this.downloadCompleteProject());
                 
                 // Navigation bar buttons
                 document.getElementById('navPrevBtn').addEventListener('click', () => this.previousImage());
@@ -1382,6 +1403,319 @@
                 processNext();
             }
             
+            async downloadCompleteProject() {
+                if (!this.images.length) {
+                    this.showToast('No images to download');
+                    return;
+                }
+
+                const includeMasks = document.getElementById('includeMasksInDownload').checked;
+                const includeOverlays = document.getElementById('includeOverlaysInDownload').checked;
+                
+                // Show progress
+                const progressBar = document.getElementById('downloadProgress');
+                const progressFill = document.getElementById('downloadProgressFill');
+                const statusDiv = document.getElementById('downloadStatus');
+                
+                progressBar.style.display = 'block';
+                progressFill.style.width = '0%';
+                statusDiv.textContent = 'Preparing download...';
+
+                try {
+                    // Import JSZip library dynamically
+                    const JSZip = await this.loadJSZip();
+                    const zip = new JSZip();
+
+                    // Create folder structure
+                    const folders = {
+                        approved: zip.folder('01_approved'),
+                        rejected: zip.folder('02_rejected'),
+                        skipped: zip.folder('03_skipped'),
+                        pending: zip.folder('04_pending')
+                    };
+
+                    if (includeMasks) {
+                        folders.approvedMasks = zip.folder('01_approved/masks');
+                        folders.rejectedMasks = zip.folder('02_rejected/masks');
+                        folders.skippedMasks = zip.folder('03_skipped/masks');
+                        folders.pendingMasks = zip.folder('04_pending/masks');
+                    }
+
+                    if (includeOverlays) {
+                        folders.approvedOverlays = zip.folder('01_approved/overlays');
+                        folders.rejectedOverlays = zip.folder('02_rejected/overlays');
+                        folders.skippedOverlays = zip.folder('03_skipped/overlays');
+                        folders.pendingOverlays = zip.folder('04_pending/overlays');
+                    }
+
+                    // Add README file
+                    const readmeContent = this.generateReadmeContent();
+                    zip.file('README.md', readmeContent);
+
+                    // Add session data and results
+                    const sessionData = JSON.stringify(this.sessionData, null, 2);
+                    zip.file('session_data.json', sessionData);
+
+                    const results = this.generateDetailedResults();
+                    zip.file('classification_results.json', JSON.stringify(results, null, 2));
+
+                    // Add CSV export
+                    const csvContent = this.generateCSVResults();
+                    zip.file('classification_results.csv', csvContent);
+
+                    let processedCount = 0;
+                    const totalItems = this.images.length * (1 + (includeMasks ? 1 : 0) + (includeOverlays ? 1 : 0));
+
+                    // Process each image
+                    for (let i = 0; i < this.images.length; i++) {
+                        const image = this.images[i];
+                        const classification = this.sessionData.classifications[image.name] || { status: 'pending' };
+                        const status = classification.status;
+                        
+                        statusDiv.textContent = `Processing ${image.name}...`;
+
+                        // Add original image
+                        const imageBlob = await this.getImageBlob(image.img);
+                        folders[status].file(image.name, imageBlob);
+                        processedCount++;
+
+                        // Update progress
+                        const progress = (processedCount / totalItems) * 100;
+                        progressFill.style.width = progress + '%';
+
+                        // Add corresponding mask if available and requested
+                        if (includeMasks && this.masks[i]) {
+                            const mask = this.masks[i];
+                            const maskBlob = await this.getImageBlob(mask.img);
+                            folders[status + 'Masks'].file(mask.name, maskBlob);
+                            processedCount++;
+                            
+                            const progress2 = (processedCount / totalItems) * 100;
+                            progressFill.style.width = progress2 + '%';
+                        }
+
+                        // Add overlay image if requested
+                        if (includeOverlays && this.masks[i]) {
+                            statusDiv.textContent = `Creating overlay for ${image.name}...`;
+                            const overlayBlob = await this.createOverlayBlob(image, this.masks[i]);
+                            const overlayName = image.name.replace(/\.[^/.]+$/, '_overlay.png');
+                            folders[status + 'Overlays'].file(overlayName, overlayBlob);
+                            processedCount++;
+                            
+                            const progress3 = (processedCount / totalItems) * 100;
+                            progressFill.style.width = progress3 + '%';
+                        }
+
+                        // Small delay to prevent UI blocking
+                        await new Promise(resolve => setTimeout(resolve, 10));
+                    }
+
+                    statusDiv.textContent = 'Creating zip file...';
+                    
+                    // Generate the zip file
+                    const zipBlob = await zip.generateAsync({
+                        type: 'blob',
+                        compression: 'DEFLATE',
+                        compressionOptions: { level: 6 }
+                    });
+
+                    // Download the zip file
+                    const url = URL.createObjectURL(zipBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `image_analysis_project_${this.sessionData.sessionId}_${new Date().toISOString().split('T')[0]}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    // Hide progress
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                    statusDiv.textContent = 'Packages images, masks, and results into organized folders';
+
+                    this.showToast('Project downloaded successfully!');
+
+                } catch (error) {
+                    console.error('Error creating download:', error);
+                    this.showToast('Error creating download package');
+                    
+                    // Hide progress on error
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                    statusDiv.textContent = 'Error occurred during download';
+                }
+            }
+
+            async loadJSZip() {
+                // Load JSZip library dynamically
+                if (window.JSZip) {
+                    return window.JSZip;
+                }
+
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                    script.onload = () => resolve(window.JSZip);
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            async getImageBlob(img) {
+                return new Promise((resolve) => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    canvas.toBlob(resolve, 'image/png');
+                });
+            }
+
+            async createOverlayBlob(image, mask) {
+                return new Promise((resolve) => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = image.img.width;
+                    canvas.height = image.img.height;
+
+                    // Draw original image
+                    ctx.drawImage(image.img, 0, 0);
+
+                    // Create and process mask overlay
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = image.img.width;
+                    tempCanvas.height = image.img.height;
+
+                    // Draw mask
+                    tempCtx.drawImage(mask.img, 0, 0, image.img.width, image.img.height);
+
+                    // Process mask colors
+                    const imageData = tempCtx.getImageData(0, 0, image.img.width, image.img.height);
+                    const data = imageData.data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const grayValue = data[i];
+                        let targetColor;
+
+                        if (this.invertMask) {
+                            targetColor = grayValue > 127 ? this.nonBuildingColor : this.buildingColor;
+                        } else {
+                            targetColor = grayValue > 127 ? this.buildingColor : this.nonBuildingColor;
+                        }
+
+                        data[i] = targetColor.r;
+                        data[i + 1] = targetColor.g;
+                        data[i + 2] = targetColor.b;
+                    }
+
+                    tempCtx.putImageData(imageData, 0, 0);
+
+                    // Apply overlay
+                    ctx.globalAlpha = this.transparency;
+                    ctx.drawImage(tempCanvas, 0, 0);
+                    ctx.globalAlpha = 1.0;
+
+                    canvas.toBlob(resolve, 'image/png');
+                });
+            }
+
+            generateReadmeContent() {
+                const stats = this.stats;
+                const date = new Date().toLocaleString();
+                
+                return `# Image Analysis Project Results
+
+## Project Information
+- **Session ID**: ${this.sessionData.sessionId}
+- **Created**: ${new Date(this.sessionData.createdAt).toLocaleString()}
+- **Downloaded**: ${date}
+- **Total Images**: ${stats.total}
+
+## Classification Summary
+- **Approved**: ${stats.approved} images
+- **Rejected**: ${stats.rejected} images
+- **Skipped**: ${stats.skipped} images
+- **Pending**: ${stats.pending} images
+
+## Folder Structure
+- \`01_approved/\` - Images classified as approved
+- \`02_rejected/\` - Images classified as rejected  
+- \`03_skipped/\` - Images classified as skipped
+- \`04_pending/\` - Images not yet classified
+- \`masks/\` - Corresponding mask files (if included)
+- \`overlays/\` - Generated overlay images (if included)
+
+## Files Included
+- \`README.md\` - This file
+- \`session_data.json\` - Complete session data with timestamps
+- \`classification_results.json\` - Detailed classification results
+- \`classification_results.csv\` - Results in CSV format for Excel/analysis
+
+## Settings Used
+- **Building Color**: RGB(${this.buildingColor.r}, ${this.buildingColor.g}, ${this.buildingColor.b})
+- **Non-Building Color**: RGB(${this.nonBuildingColor.r}, ${this.nonBuildingColor.g}, ${this.nonBuildingColor.b})
+- **Mask Inverted**: ${this.invertMask ? 'Yes' : 'No'}
+- **Overlay Transparency**: ${Math.round(this.transparency * 100)}%
+
+Generated by Modern Image Overlay Viewer - GeoAI Research Tool
+`;
+            }
+
+            generateDetailedResults() {
+                return {
+                    sessionInfo: {
+                        sessionId: this.sessionData.sessionId,
+                        createdAt: this.sessionData.createdAt,
+                        downloadedAt: new Date().toISOString(),
+                        totalImages: this.stats.total,
+                        settings: {
+                            buildingColor: this.buildingColor,
+                            nonBuildingColor: this.nonBuildingColor,
+                            invertMask: this.invertMask,
+                            transparency: this.transparency
+                        }
+                    },
+                    summary: this.stats,
+                    classifications: this.sessionData.classifications,
+                    details: this.images.map((image, index) => {
+                        const classification = this.sessionData.classifications[image.name] || { status: 'pending' };
+                        return {
+                            index: index + 1,
+                            filename: image.name,
+                            status: classification.status,
+                            timestamp: classification.timestamp,
+                            notes: classification.notes || '',
+                            hasCorrespondingMask: !!this.masks[index],
+                            maskFilename: this.masks[index] ? this.masks[index].name : null
+                        };
+                    })
+                };
+            }
+
+            generateCSVResults() {
+                const headers = ['Index', 'Filename', 'Status', 'Timestamp', 'Notes', 'Has_Mask', 'Mask_Filename'];
+                const rows = [headers.join(',')];
+
+                this.images.forEach((image, index) => {
+                    const classification = this.sessionData.classifications[image.name] || { status: 'pending' };
+                    const row = [
+                        index + 1,
+                        `"${image.name}"`,
+                        classification.status,
+                        classification.timestamp ? `"${classification.timestamp}"` : '',
+                        `"${(classification.notes || '').replace(/"/g, '""')}"`,
+                        this.masks[index] ? 'Yes' : 'No',
+                        this.masks[index] ? `"${this.masks[index].name}"` : ''
+                    ];
+                    rows.push(row.join(','));
+                });
+
+                return rows.join('\n');
+            }
+            
             exportView() {
                 if (!this.images.length) {
                     this.showToast('No image to export');
@@ -1467,6 +1801,7 @@
                 document.getElementById('exportBtn').disabled = !hasImages;
                 document.getElementById('exportResultsBtn').disabled = !hasImages;
                 document.getElementById('createSubsetBtn').disabled = !hasImages;
+                document.getElementById('downloadProjectBtn').disabled = !hasImages;
                 
                 // Update statistics
                 document.getElementById('currentIndex').textContent = hasImages ? this.currentIndex + 1 : 0;
