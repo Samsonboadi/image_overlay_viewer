@@ -1,0 +1,37 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ControlPanel from '../components/ControlPanel.astro';
+import ImagePanel from '../components/ImagePanel.astro';
+---
+
+<Layout title="🔬 Image Overlay Viewer - GeoAI">
+	<div class="container">
+		<main class="main-content">
+			<ControlPanel />
+			<ImagePanel />
+		</main>
+	</div>
+	
+	<!-- Toast notification -->
+	<div class="toast" id="toast">
+		<span class="toast-icon">✨</span>
+		<span id="toastText">System Ready</span>
+	</div>
+</Layout>
+
+<script>
+	import { ModernImageOverlayApp } from '../scripts/app.js';
+
+	// Wait for DOM to be ready
+	document.addEventListener('DOMContentLoaded', () => {
+		const app = new ModernImageOverlayApp();
+		
+		// Initial canvas resize to match container
+		setTimeout(() => app.resizeCanvas(), 150);
+
+		// Handle windows resize
+		window.addEventListener('resize', () => {
+			setTimeout(() => app.resizeCanvas(), 100);
+		});
+	});
+</script>

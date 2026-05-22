@@ -1,0 +1,236 @@
+---
+// ControlPanel.astro
+---
+
+<aside class="control-panel glass-panel">
+  <!-- Load Data -->
+  <div class="control-group">
+    <h3>📁 Load Data</h3>
+    
+    <!-- Azure Cloud Storage API Client -->
+    <div class="azure-connection-box">
+      <div class="azure-input-field">
+        <label for="azureApiUrl">Azure API Endpoint</label>
+        <input type="text" id="azureApiUrl" />
+      </div>
+      <div class="azure-grid-fields">
+        <div class="azure-input-field">
+          <label for="azureLimit">Limit</label>
+          <input type="number" id="azureLimit" min="1" max="1000" value="50" />
+        </div>
+        <div class="azure-input-field">
+          <label for="azureOffset">Offset</label>
+          <input type="number" id="azureOffset" min="0" value="0" />
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-small" id="azureLoadBtn" style="margin-top: 4px;">🌐 Load Cloud Dataset</button>
+      <div id="azureStatus" class="azure-status-text">Connect to image inventory client</div>
+    </div>
+
+    <div class="file-drop-zone" id="imageDropZone">
+      <p>📸 Drop local images here or click to browse</p>
+      <input type="file" id="imageInput" class="file-input" multiple accept="image/*">
+    </div>
+    <div class="progress-bar" id="imageLoadProgress" style="display: none;">
+      <div class="progress-fill" id="imageProgressFill"></div>
+    </div>
+    <div id="imageLoadStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
+    
+    <div class="file-drop-zone" id="maskDropZone" style="margin-top: 14px;">
+      <p>🎭 Drop local masks here or click to browse</p>
+      <input type="file" id="maskInput" class="file-input" multiple accept="image/*">
+    </div>
+    <div class="progress-bar" id="maskLoadProgress" style="display: none;">
+      <div class="progress-fill" id="maskProgressFill"></div>
+    </div>
+    <div id="maskLoadStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
+  </div>
+
+  <!-- Session Management -->
+  <div class="control-group">
+    <h3>💾 Session Management</h3>
+    <div class="session-controls">
+      <button class="btn btn-success btn-small" id="saveSessionBtn">💾 Save</button>
+      <button class="btn btn-secondary btn-small" id="loadSessionBtn">📂 Load</button>
+      <button class="btn btn-warning btn-small" id="newSessionBtn">🔄 New</button>
+    </div>
+    <input type="file" id="sessionInput" class="file-input" accept=".json">
+    <div id="sessionStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
+  </div>
+
+  <!-- Current Image Status -->
+  <div class="control-group">
+    <h3>📋 Current Image Status</h3>
+    <div class="current-status" id="currentImageStatus">
+      <div id="statusDisplay">No image selected</div>
+      <div id="statusActions" class="status-actions-grid" style="display: none;">
+        <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
+        <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
+        <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
+        <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
+      </div>
+      <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 8px;">
+        <label class="checkbox-container">
+          <input type="checkbox" id="autoAdvanceCheckbox" checked>
+          <span class="checkbox-checkmark"></span>
+          Auto-advance after action
+        </label>
+        <button class="btn btn-secondary btn-small" id="nextPendingBtn">⤵️ Jump to Next Pending</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mask Classes Configuration -->
+  <div class="control-group">
+    <h3>🎨 Mask Classes</h3>
+    <div class="class-count-input">
+      <label for="numClassesInput">Number of classes:</label>
+      <input type="number" id="numClassesInput" min="1" max="50" value="2">
+    </div>
+
+    <div class="background-class-row">
+      <label>Background color (unmatched)</label>
+      <input type="color" id="backgroundColorPicker" value="#000000" title="Background color">
+    </div>
+
+    <div class="class-labels-header">
+      <span>Label</span>
+      <span>Pixel Val</span>
+      <span>Color</span>
+      <span></span>
+    </div>
+    <div class="class-list" id="classListContainer">
+      <!-- Dynamic class rows inserted here -->
+    </div>
+    <div class="class-info" id="classInfo">Configure pixel values and colors for each mask class</div>
+
+    <label class="checkbox-container">
+      <input type="checkbox" id="transparentBackgroundCheckbox" checked>
+      <span class="checkbox-checkmark"></span>
+      Make background transparent
+    </label>
+  </div>
+
+  <!-- Overlay Controls -->
+  <div class="control-group">
+    <h3>🎛️ Overlay Controls</h3>
+    
+    <div class="slider-container">
+      <label for="transparencySlider">Transparency: <span id="transparencyValue">50%</span></label>
+      <input type="range" id="transparencySlider" class="slider" min="0" max="100" value="50">
+    </div>
+    
+    <div class="slider-container">
+      <label for="zoomSlider">Zoom: <span id="zoomValue">100%</span></label>
+      <input type="range" id="zoomSlider" class="slider" min="10" max="500" value="100">
+    </div>
+  </div>
+
+  <!-- Random Subset -->
+  <div class="control-group">
+    <h3>🎲 Random Subset</h3>
+    <div class="slider-container">
+      <label for="percentageSlider">Percentage: <span id="percentageValue">20%</span></label>
+      <input type="range" id="percentageSlider" class="slider" min="1" max="100" value="20">
+    </div>
+    <button class="btn btn-warning" id="createSubsetBtn" disabled>Create Random Subset</button>
+    <div class="progress-bar" id="progressBar" style="display: none;">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="control-group">
+    <h3>📊 Statistics</h3>
+    <div class="stats-display" id="statsDisplay">
+      <div class="stats-card">
+        <div class="stats-card-label">Current / Total</div>
+        <div class="stats-card-value primary"><span id="currentIndex">0</span> / <span id="totalImages">0</span></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-label">Approved</div>
+        <div class="stats-card-value approved" id="approvedCount">0</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-label">Rejected</div>
+        <div class="stats-card-value rejected" id="rejectedCount">0</div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-card-label">Skipped</div>
+        <div class="stats-card-value skipped" id="skippedCount">0</div>
+      </div>
+      <div class="stats-card" style="grid-column: span 2;">
+        <div class="stats-card-label">Pending</div>
+        <div class="stats-card-value pending" id="pendingCount">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="control-group">
+    <h3>🎮 Navigation</h3>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button class="btn btn-success" id="prevBtn" disabled>⬅️ Prev</button>
+        <button class="btn btn-success" id="nextBtn" disabled>Next ➡️</button>
+      </div>
+      <button class="btn btn-secondary" id="exportBtn" disabled>💾 Export View</button>
+      <button class="btn btn-secondary" id="exportResultsBtn" disabled>📊 Export Results</button>
+    </div>
+  </div>
+
+  <!-- Download Complete Project -->
+  <div class="control-group">
+    <h3>📥 Download Complete Project</h3>
+    <button class="btn btn-warning" id="downloadProjectBtn" disabled>📥 Download Sorted Project</button>
+    <div class="progress-bar" id="downloadProgress" style="display: none;">
+      <div class="progress-fill" id="downloadProgressFill"></div>
+    </div>
+    <div id="downloadStatus" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px; text-align: center;">
+      Packages images, masks, and metadata into organized directories.
+    </div>
+    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+      <label class="checkbox-container">
+        <input type="checkbox" id="includeMasksInDownload" checked>
+        <span class="checkbox-checkmark"></span>
+        Include masks in download
+      </label>
+      <label class="checkbox-container">
+        <input type="checkbox" id="includeOverlaysInDownload">
+        <span class="checkbox-checkmark"></span>
+        Include overlay previews
+      </label>
+    </div>
+  </div>
+
+  <!-- Shortcuts -->
+  <div class="control-group">
+    <h3>⌨️ Shortcuts</h3>
+    <div class="keyboard-shortcuts">
+      <div class="shortcut-item">
+        <span>Previous Image</span>
+        <span class="shortcut-key">←</span>
+      </div>
+      <div class="shortcut-item">
+        <span>Next Image</span>
+        <span class="shortcut-key">→</span>
+      </div>
+      <div class="shortcut-item">
+        <span>Approve Status</span>
+        <span class="shortcut-key">A</span>
+      </div>
+      <div class="shortcut-item">
+        <span>Reject Status</span>
+        <span class="shortcut-key">R</span>
+      </div>
+      <div class="shortcut-item">
+        <span>Skip Status</span>
+        <span class="shortcut-key">S</span>
+      </div>
+      <div class="shortcut-item">
+        <span>Reset Zoom</span>
+        <span class="shortcut-key">Z</span>
+      </div>
+    </div>
+  </div>
+</aside>

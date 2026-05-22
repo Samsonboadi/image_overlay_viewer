@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Modern Image Overlay Viewer - GeoAI</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#2c3e50,#34495e);color:#fff;overflow-x:hidden}
+    .container{max-width:1400px;margin:0 auto;padding:20px;min-height:100vh}
+    .header{display:none}
+    .main-content{display:grid;grid-template-columns:350px 1fr;gap:20px;max-height:calc(100vh - 40px)}
+    .control-panel,.image-panel{background:rgba(255,255,255,.1);border-radius:15px;padding:16px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.2)}
+    .control-panel{overflow-y:auto;max-height:calc(100vh - 40px)}
+    .image-panel{display:flex;flex-direction:column;overflow:hidden}
+    .control-group{margin-bottom:16px;padding:12px;background:rgba(255,255,255,.05);border-radius:10px;border:1px solid rgba(255,255,255,.1)}
+    .control-group h3{margin-bottom:10px;color:#3498db;font-size:1.05rem}
+    .btn{background:linear-gradient(45deg,#3498db,#2980b9);border:none;color:#fff;padding:10px 14px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:.2s;width:100%;margin-bottom:8px}
+    .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(52,152,219,.28)}
+    .btn:disabled{background:#666;cursor:not-allowed}
+    .btn-success{background:linear-gradient(45deg,#27ae60,#229954)}
+    .btn-warning{background:linear-gradient(45deg,#f39c12,#e67e22)}
+    .btn-danger{background:linear-gradient(45deg,#e74c3c,#c0392b)}
+    .btn-secondary{background:linear-gradient(45deg,#95a5a6,#7f8c8d)}
+    .btn-small{padding:6px 10px;font-size:12px;margin:2px}
+    .dual-btn{display:flex;gap:8px}
+    .slider-container{margin:12px 0}
+    .slider-container label{display:block;margin-bottom:6px;font-weight:500}
+    .slider{width:100%;height:6px;border-radius:3px;background:rgba(255,255,255,.2);outline:none;-webkit-appearance:none;appearance:none}
+    .slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:linear-gradient(45deg,#3498db,#2980b9);cursor:pointer;border:2px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+    .slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:linear-gradient(45deg,#3498db,#2980b9);cursor:pointer;border:2px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+    .image-container{flex:1;position:relative;overflow:hidden;border-radius:10px;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;min-height:300px;padding:8px}
+    .image-display{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;cursor:grab;transition:transform .2s ease}
+    .image-display:active{cursor:grabbing}
+    .navigation-bar{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px;background:rgba(255,255,255,.05);border-radius:10px;flex-shrink:0}
+    .nav-btn{background:linear-gradient(45deg,#3498db,#2980b9);border:none;color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;transition:.2s;min-width:92px}
+    .nav-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(52,152,219,.35)}
+    .stats-display{text-align:center;padding:10px;background:rgba(255,255,255,.05);border-radius:10px;margin:10px 0}
+    .stats-item{margin:4px 0;font-size:13px}
+    .stats-number{font-weight:700;color:#3498db}
+    .file-input{display:none}
+    .file-drop-zone{border:2px dashed rgba(255,255,255,.3);border-radius:10px;padding:16px;text-align:center;margin:8px 0;transition:.2s;cursor:pointer}
+    .file-drop-zone:hover{border-color:#3498db;background:rgba(52,152,219,.1)}
+    .file-drop-zone.dragover{border-color:#e74c3c;background:rgba(231,76,60,.1)}
+    .progress-bar{width:100%;height:6px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden;margin:8px 0}
+    .progress-fill{height:100%;background:linear-gradient(45deg,#3498db,#2980b9);border-radius:3px;transition:width .2s ease;width:0%}
+    .status-indicator{display:inline-block;padding:3px 6px;border-radius:4px;font-size:12px;font-weight:700;margin:2px}
+    .status-approved{background:#27ae60;color:#fff}
+    .status-rejected{background:#e74c3c;color:#fff}
+    .status-skipped{background:#f39c12;color:#fff}
+    .status-pending{background:#95a5a6;color:#fff}
+    .current-status{background:rgba(255,255,255,.1);border-radius:8px;padding:12px;margin:8px 0;border-left:4px solid #3498db}
+    .session-controls{display:flex;gap:8px;margin-bottom:10px}
+    .toast{position:fixed;top:16px;right:16px;padding:12px 16px;background:rgba(0,0,0,.9);color:#fff;border-radius:8px;box-shadow:0 5px 20px rgba(0,0,0,.3);transform:translateX(400px);transition:transform .2s ease;z-index:1000}
+    .toast.show{transform:translateX(0)}
+    .keyboard-shortcuts{font-size:12px;color:rgba(255,255,255,.7);margin-top:10px}
+    .shortcut-item{display:flex;justify-content:space-between;margin:3px 0}
+    .shortcut-key{background:rgba(255,255,255,.1);padding:2px 6px;border-radius:3px;font-family:monospace}
+    @media (max-width:768px){
+      .main-content{grid-template-columns:1fr;gap:12px;max-height:none}
+      .control-panel{order:2;max-height:60vh}
+      .image-panel{order:1;max-height:50vh}
+      .image-container{min-height:200px}
+      .navigation-bar{flex-direction:column;gap:8px}
+      .nav-btn{width:100%;margin:4px 0}
+      .container{padding:10px}
+      .session-controls{flex-direction:column}
+    }
+    @media (max-width:480px){
+      .btn{padding:10px 12px;font-size:13px}
+      .control-group{padding:10px;margin-bottom:12px}
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🔬 Modern Image Overlay Viewer</h1>
+    <p>Advanced image analysis tool for GeoAI research</p>
+  </div>
+
+  <div class="main-content">
+    <div class="control-panel">
+      <div class="control-group">
+        <h3>📁 Load Data</h3>
+        <div class="file-drop-zone" id="imageDropZone">
+          <p>📸 Drop images here or click to browse</p>
+          <input type="file" id="imageInput" class="file-input" multiple accept="image/*">
+        </div>
+        <div class="progress-bar" id="imageLoadProgress" style="display:none;">
+          <div class="progress-fill" id="imageProgressFill"></div>
+        </div>
+        <div id="imageLoadStatus" style="font-size:12px;color:#bdc3c7;margin-top:5px;"></div>
+
+        <div class="file-drop-zone" id="maskDropZone">
+          <p>🎭 Drop masks here or click to browse</p>
+          <input type="file" id="maskInput" class="file-input" multiple accept="image/*">
+        </div>
+        <div class="progress-bar" id="maskLoadProgress" style="display:none;">
+          <div class="progress-fill" id="maskProgressFill"></div>
+        </div>
+        <div id="maskLoadStatus" style="font-size:12px;color:#bdc3c7;margin-top:5px;"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>💾 Session Management</h3>
+        <div class="session-controls">
+          <button class="btn btn-success btn-small" id="saveSessionBtn">💾 Save</button>
+          <button class="btn btn-secondary btn-small" id="loadSessionBtn">📂 Load</button>
+          <button class="btn btn-warning btn-small" id="newSessionBtn">🔄 New</button>
+        </div>
+        <input type="file" id="sessionInput" class="file-input" accept=".json">
+        <div id="sessionStatus" style="font-size:12px;color:#bdc3c7;margin-top:5px;"></div>
+      </div>
+
+      <div class="control-group">
+        <h3>📋 Current Image Status</h3>
+        <div class="current-status" id="currentImageStatus">
+          <div id="statusDisplay">No image selected</div>
+          <div id="statusActions" style="margin-top:10px;display:none;">
+            <div class="dual-btn">
+              <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
+              <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
+            </div>
+            <div class="dual-btn">
+              <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
+              <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;">
+              <input type="checkbox" id="autoAdvanceCheckbox" checked>
+              Auto-advance after action
+            </label>
+            <button class="btn btn-secondary btn-small" id="nextPendingBtn" style="margin-top:6px;">⤵️ Jump to Next Pending</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>🎛️ Overlay Controls</h3>
+        <div class="slider-container">
+          <label for="transparencySlider">Transparency: <span id="transparencyValue">50%</span></label>
+          <input type="range" id="transparencySlider" class="slider" min="0" max="100" value="50">
+        </div>
+        <div class="slider-container">
+          <label for="zoomSlider">Zoom: <span id="zoomValue">100%</span></label>
+          <input type="range" id="zoomSlider" class="slider" min="10" max="500" value="100">
+        </div>
+        <div class="slider-container">
+          <label for="buildingColorPicker">Building Color:</label>
+          <input type="color" id="buildingColorPicker" value="#ff0000" style="width:100%;height:35px;border:none;border-radius:5px;cursor:pointer;">
+        </div>
+        <div class="slider-container">
+          <label for="nonBuildingColorPicker">Non-Building Color:</label>
+          <input type="color" id="nonBuildingColorPicker" value="#000000" style="width:100%;height:35px;border:none;border-radius:5px;cursor:pointer;">
+        </div>
+        <div class="slider-container">
+          <label><input type="checkbox" id="invertMaskCheckbox" style="margin-right:8px;">Invert Mask Colors</label>
+        </div>
+        <div class="slider-container">
+          <label><input type="checkbox" id="transparentNonBuilding" style="margin-right:8px;">Make Non-Building Transparent</label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>🎲 Random Subset</h3>
+        <div class="slider-container">
+          <label for="percentageSlider">Percentage: <span id="percentageValue">20%</span></label>
+          <input type="range" id="percentageSlider" class="slider" min="1" max="100" value="20">
+        </div>
+        <button class="btn btn-warning" id="createSubsetBtn" disabled>Create Random Subset</button>
+        <div class="progress-bar" id="progressBar" style="display:none;">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>📊 Statistics</h3>
+        <div class="stats-display" id="statsDisplay">
+          <div class="stats-item">Current: <span class="stats-number" id="currentIndex">0</span>/<span class="stats-number" id="totalImages">0</span></div>
+          <div class="stats-item">Approved: <span class="stats-number" id="approvedCount">0</span></div>
+          <div class="stats-item">Rejected: <span class="stats-number" id="rejectedCount">0</span></div>
+          <div class="stats-item">Skipped: <span class="stats-number" id="skippedCount">0</span></div>
+          <div class="stats-item">Pending: <span class="stats-number" id="pendingCount">0</span></div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>🎮 Navigation / Export</h3>
+        <button class="btn btn-success" id="prevBtn" disabled>⬅️ Previous</button>
+        <button class="btn btn-success" id="nextBtn" disabled>➡️ Next</button>
+        <button class="btn btn-secondary" id="exportBtn" disabled>💾 Export View</button>
+        <button class="btn btn-secondary" id="exportResultsBtn" disabled>📊 Export Results</button>
+      </div>
+
+      <div class="control-group">
+        <h3>📦 Download Complete Project</h3>
+        <button class="btn btn-warning" id="downloadProjectBtn" disabled>📥 Download Sorted Project</button>
+        <div class="progress-bar" id="downloadProgress" style="display:none;">
+          <div class="progress-fill" id="downloadProgressFill"></div>
+        </div>
+        <div id="downloadStatus" style="font-size:12px;color:#bdc3c7;margin-top:5px;">Packages images, masks, and results into organized folders</div>
+        <div style="margin-top:8px;">
+          <label style="font-size:12px;"><input type="checkbox" id="includeMasksInDownload" checked style="margin-right:5px;">Include masks in download</label>
+        </div>
+        <div style="margin-top:6px;">
+          <label style="font-size:12px;"><input type="checkbox" id="includeOverlaysInDownload" style="margin-right:5px;">Include overlay images</label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>⌨️ Shortcuts</h3>
+        <div class="keyboard-shortcuts">
+          <div class="shortcut-item"><span>Previous</span><span class="shortcut-key">←</span></div>
+          <div class="shortcut-item"><span>Next</span><span class="shortcut-key">→</span></div>
+          <div class="shortcut-item"><span>Approve</span><span class="shortcut-key">A</span></div>
+          <div class="shortcut-item"><span>Reject</span><span class="shortcut-key">R</span></div>
+          <div class="shortcut-item"><span>Skip</span><span class="shortcut-key">S</span></div>
+          <div class="shortcut-item"><span>Reset Zoom</span><span class="shortcut-key">Z</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="image-panel">
+      <div class="image-container" id="imageContainer">
+        <canvas id="imageCanvas" class="image-display"></canvas>
+      </div>
+      <div class="navigation-bar">
+        <button class="nav-btn" id="navPrevBtn" disabled>⬅️ Previous</button>
+        <div><span id="imageInfo">Select images to start</span></div>
+        <button class="nav-btn" id="navNextBtn" disabled>➡️ Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+class ModernImageOverlayApp {
+  constructor(){
+    this.images=[]; this.masks=[]; this.masksMap=new Map(); this.currentIndex=0;
+    this.transparency=0.5; this.zoom=1.0; this.panX=0; this.panY=0; this.isDragging=false; this.lastMousePos={x:0,y:0};
+    this.displayMaxDim=1024;
+    this.buildingColor={r:255,g:0,b:0}; this.nonBuildingColor={r:0,g:0,b:0};
+    this.invertMask=false; this.transparentNonBuilding=false; this.autoAdvance=true;
+    this.sessionData={sessionId:this.generateSessionId(),createdAt:new Date().toISOString(),classifications:{},settings:{}};
+    this.deferredRestore=null; this.projectId=null;
+    this.stats={approved:0,rejected:0,skipped:0,pending:0,total:0};
+    this.canvas=document.getElementById('imageCanvas');
+    this.ctx=this.canvas.getContext('2d');
+    this.setupEventListeners();
+    this.setupTouchEvents();
+    this.updateUI();
+    this.updateSessionStatus();
+  }
+
+  generateSessionId(){ return 'session_'+Date.now()+'_'+Math.random().toString(36).slice(2,11); }
+  normalizeBase(name){ return (name||'').toLowerCase().replace(/\.[^/.]+$/,''); }
+  rgbToHex(rgb){ return "#"+((1<<24)+(rgb.r<<16)+(rgb.g<<8)+rgb.b).toString(16).slice(1); }
+  hexToRgb(hex){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); return m?{r:parseInt(m[1],16),g:parseInt(m[2],16),b:parseInt(m[3],16)}:{r:255,g:0,b:0}; }
+  computeProjectId(){ const names=this.images.map(i=>i.name).sort().join('|'); let h=5381; for(let i=0;i<names.length;i++){ h=((h<<5)+h)+names.charCodeAt(i); h|=0; } return 'geoai_overlay_'+(h>>>0); }
+
+  saveToLocalStorage(){
+    if(!this.projectId) return;
+    const payload={sessionId:this.sessionData.sessionId,classifications:this.sessionData.classifications,settings:this.sessionData.settings,currentIndex:this.currentIndex,lastViewedFilename:this.images[this.currentIndex]?this.images[this.currentIndex].name:null,savedAt:new Date().toISOString()};
+    try{ localStorage.setItem(this.projectId, JSON.stringify(payload)); }catch(e){}
+  }
+
+  tryRestoreFromLocalStorage(){
+    if(!this.projectId) return false;
+    try{
+      const raw=localStorage.getItem(this.projectId); if(!raw) return false;
+      const data=JSON.parse(raw);
+      this.sessionData.classifications={...this.sessionData.classifications,...(data.classifications||{})};
+      if(data.settings){ this.applySettings(data.settings); }
+      if(data.lastViewedFilename){
+        const idx=this.images.findIndex(im=>im.name===data.lastViewedFilename);
+        if(idx>=0) this.currentIndex=idx;
+      } else if(typeof data.currentIndex==='number'){
+        this.currentIndex=Math.min(Math.max(0,data.currentIndex), Math.max(0,this.images.length-1));
+      }
+      this.updateStats(); this.updateUI(); this.showToast('Auto-resumed from last save');
+      return true;
+    }catch(e){ return false; }
+  }
+
+  applySettings(s){
+    if(s.buildingColor){ this.buildingColor=s.buildingColor; document.getElementById('buildingColorPicker').value=this.rgbToHex(this.buildingColor); }
+    if(s.nonBuildingColor){ this.nonBuildingColor=s.nonBuildingColor; document.getElementById('nonBuildingColorPicker').value=this.rgbToHex(this.nonBuildingColor); }
+    if(typeof s.invertMask==='boolean'){ this.invertMask=s.invertMask; document.getElementById('invertMaskCheckbox').checked=this.invertMask; }
+    if(typeof s.transparency==='number'){ this.transparency=s.transparency; document.getElementById('transparencySlider').value=this.transparency*100; document.getElementById('transparencyValue').textContent=Math.round(this.transparency*100)+'%'; }
+    if(typeof s.transparentNonBuilding==='boolean'){ this.transparentNonBuilding=s.transparentNonBuilding; document.getElementById('transparentNonBuilding').checked=this.transparentNonBuilding; }
+    if(typeof s.autoAdvance==='boolean'){ this.autoAdvance=s.autoAdvance; document.getElementById('autoAdvanceCheckbox').checked=this.autoAdvance; }
+  }
+
+  setupEventListeners(){
+    document.getElementById('imageInput').addEventListener('change',(e)=>this.loadImages(e.target.files));
+    document.getElementById('maskInput').addEventListener('change',(e)=>this.loadMasks(e.target.files));
+    document.getElementById('saveSessionBtn').addEventListener('click',()=>this.saveSession());
+    document.getElementById('loadSessionBtn').addEventListener('click',()=>document.getElementById('sessionInput').click());
+    document.getElementById('sessionInput').addEventListener('change',(e)=>this.loadSession(e.target.files[0]));
+    document.getElementById('newSessionBtn').addEventListener('click',()=>this.newSession());
+    document.getElementById('approveBtn').addEventListener('click',()=>{ this.setImageStatus('approved'); this.afterActionAdvance(); this.saveToLocalStorage(); });
+    document.getElementById('rejectBtn').addEventListener('click',()=>{ this.setImageStatus('rejected'); this.afterActionAdvance(); this.saveToLocalStorage(); });
+    document.getElementById('skipCurrentBtn').addEventListener('click',()=>{ this.setImageStatus('skipped'); this.afterActionAdvance(); this.saveToLocalStorage(); });
+    document.getElementById('clearStatusBtn').addEventListener('click',()=>{ this.clearImageStatus(); this.saveToLocalStorage(); });
+    document.getElementById('autoAdvanceCheckbox').addEventListener('change',(e)=>{ this.autoAdvance=e.target.checked; this.persistSettings(); });
+    document.getElementById('nextPendingBtn').addEventListener('click',()=>this.jumpToNextPending());
+    this.setupDropZone('imageDropZone','imageInput');
+    this.setupDropZone('maskDropZone','maskInput');
+    document.getElementById('transparencySlider').addEventListener('input',(e)=>{ this.transparency=e.target.value/100; document.getElementById('transparencyValue').textContent=e.target.value+'%'; this.drawImage(); this.persistSettings(); });
+    document.getElementById('zoomSlider').addEventListener('input',(e)=>{ this.zoom=e.target.value/100; document.getElementById('zoomValue').textContent=e.target.value+'%'; this.drawImage(); });
+    document.getElementById('buildingColorPicker').addEventListener('change',(e)=>{ this.buildingColor=this.hexToRgb(e.target.value); this.drawImage(); this.persistSettings(); });
+    document.getElementById('nonBuildingColorPicker').addEventListener('change',(e)=>{ this.nonBuildingColor=this.hexToRgb(e.target.value); this.drawImage(); this.persistSettings(); });
+    document.getElementById('invertMaskCheckbox').addEventListener('change',(e)=>{ this.invertMask=e.target.checked; this.drawImage(); this.persistSettings(); });
+    document.getElementById('transparentNonBuilding').addEventListener('change',(e)=>{ this.transparentNonBuilding=e.target.checked; this.drawImage(); this.persistSettings(); });
+    document.getElementById('prevBtn').addEventListener('click',()=>this.previousImage());
+    document.getElementById('nextBtn').addEventListener('click',()=>this.nextImage());
+    document.getElementById('exportBtn').addEventListener('click',()=>this.exportView());
+    document.getElementById('exportResultsBtn').addEventListener('click',()=>this.exportResults());
+    document.getElementById('createSubsetBtn').addEventListener('click',()=>this.createRandomSubset());
+    document.getElementById('downloadProjectBtn').addEventListener('click',()=>this.downloadCompleteProject());
+    document.getElementById('navPrevBtn').addEventListener('click',()=>this.previousImage());
+    document.getElementById('navNextBtn').addEventListener('click',()=>this.nextImage());
+    this.canvas.addEventListener('mousedown',(e)=>this.startDrag(e));
+    this.canvas.addEventListener('mousemove',(e)=>this.drag(e));
+    this.canvas.addEventListener('mouseup',()=>this.endDrag());
+    this.canvas.addEventListener('wheel',(e)=>this.handleZoom(e));
+    document.addEventListener('keydown',(e)=>this.handleKeyboard(e));
+    window.addEventListener('resize',()=>this.resizeCanvas());
+  }
+
+  setupTouchEvents(){
+    this.canvas.addEventListener('touchstart',(e)=>{ e.preventDefault(); const t=e.touches[0]; this.startDrag({clientX:t.clientX,clientY:t.clientY}); });
+    this.canvas.addEventListener('touchmove',(e)=>{ e.preventDefault(); const t=e.touches[0]; this.drag({clientX:t.clientX,clientY:t.clientY}); });
+    this.canvas.addEventListener('touchend',(e)=>{ e.preventDefault(); this.endDrag(); });
+    let lastDistance=0;
+    this.canvas.addEventListener('touchstart',(e)=>{ if(e.touches.length===2){ const dx=e.touches[0].clientX-e.touches[1].clientX; const dy=e.touches[0].clientY-e.touches[1].clientY; lastDistance=Math.hypot(dx,dy); } });
+    this.canvas.addEventListener('touchmove',(e)=>{ if(e.touches.length===2){ e.preventDefault(); const dx=e.touches[0].clientX-e.touches[1].clientX; const dy=e.touches[0].clientY-e.touches[1].clientY; const d=Math.hypot(dx,dy); if(lastDistance>0){ const scale=d/lastDistance; this.zoom=Math.max(0.1,Math.min(5,this.zoom*scale)); document.getElementById('zoomSlider').value=this.zoom*100; document.getElementById('zoomValue').textContent=Math.round(this.zoom*100)+'%'; this.drawImage(); } lastDistance=d; } });
+  }
+
+  setupDropZone(zoneId,inputId){
+    const zone=document.getElementById(zoneId);
+    const input=document.getElementById(inputId);
+    zone.addEventListener('click',()=>input.click());
+    zone.addEventListener('dragover',(e)=>{e.preventDefault(); zone.classList.add('dragover');});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+    zone.addEventListener('drop',(e)=>{ e.preventDefault(); zone.classList.remove('dragover'); const files=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')); if(zoneId==='imageDropZone') this.loadImages(files); else this.loadMasks(files); });
+  }
+
+  async loadImages(files){
+    const imgs=Array.from(files||[]).filter(f=>f.type.startsWith('image/'));
+    if(!imgs.length) return;
+    const bar=document.getElementById('imageLoadProgress');
+    const fill=document.getElementById('imageProgressFill');
+    const status=document.getElementById('imageLoadStatus');
+    bar.style.display='block'; fill.style.width='0%'; status.textContent='Loading images...';
+    this.images=[];
+    for(let i=0;i<imgs.length;i++){
+      const file=imgs[i]; const img=new Image(); const url=URL.createObjectURL(file);
+      status.textContent=`Loading image ${i+1}/${imgs.length}: ${file.name}`;
+      await new Promise((resolve)=>{ img.onload=()=>{ this.images.push({img,name:file.name,url}); fill.style.width=((i+1)/imgs.length*100)+'%'; resolve(); }; img.onerror=()=>resolve(); img.src=url; });
+      await new Promise(r=>setTimeout(r,20));
+    }
+    bar.style.display='none';
+    status.textContent=`✅ Loaded ${this.images.length} images`;
+    this.images.sort((a,b)=>a.name.localeCompare(b.name));
+    this.stats.total=this.images.length;
+    this.projectId=this.computeProjectId();
+    this.updateSessionWithImages();
+    if(this.deferredRestore){
+      this.applySettings(this.deferredRestore.settings||{});
+      const target=this.deferredRestore.lastViewedFilename;
+      if(target){ const idx=this.images.findIndex(im=>im.name===target); if(idx>=0) this.currentIndex=idx; }
+      else if(typeof this.deferredRestore.currentIndex==='number'){ this.currentIndex=Math.min(Math.max(0,this.deferredRestore.currentIndex), Math.max(0,this.images.length-1)); }
+      this.deferredRestore=null; this.showToast('Session restored');
+    } else { this.tryRestoreFromLocalStorage(); }
+    this.updateUI(); this.resizeCanvas(); this.drawImage(); this.saveToLocalStorage(); this.showToast(`Loaded ${this.images.length} images`);
+  }
+
+  async loadMasks(files){
+    const mfiles=Array.from(files||[]).filter(f=>f.type.startsWith('image/'));
+    if(!mfiles.length) return;
+    const bar=document.getElementById('maskLoadProgress');
+    const fill=document.getElementById('maskProgressFill');
+    const status=document.getElementById('maskLoadStatus');
+    bar.style.display='block'; fill.style.width='0%'; status.textContent='Loading masks...';
+    this.masks=[]; this.masksMap.clear();
+    for(let i=0;i<mfiles.length;i++){
+      const file=mfiles[i]; const img=new Image(); const url=URL.createObjectURL(file);
+      status.textContent=`Loading mask ${i+1}/${mfiles.length}: ${file.name}`;
+      await new Promise((resolve)=>{ img.onload=()=>{ const maskObj={img,name:file.name,url}; this.masks.push(maskObj); this.masksMap.set(this.normalizeBase(file.name), maskObj); fill.style.width=((i+1)/mfiles.length*100)+'%'; resolve(); }; img.onerror=()=>resolve(); img.src=url; });
+      await new Promise(r=>setTimeout(r,20));
+    }
+    bar.style.display='none';
+    status.textContent=`✅ Loaded ${this.masks.length} masks`;
+    this.masks.sort((a,b)=>a.name.localeCompare(b.name));
+    this.masksMap.clear(); for(const m of this.masks) this.masksMap.set(this.normalizeBase(m.name), m);
+    this.updateUI(); this.drawImage(); this.showToast(`Loaded ${this.masks.length} masks`);
+  }
+
+  findMaskForImage(imageName){ return this.masksMap.get(this.normalizeBase(imageName)) || null; }
+  updateSessionWithImages(){ this.images.forEach(image=>{ if(!this.sessionData.classifications[image.name]) this.sessionData.classifications[image.name]={status:'pending',timestamp:null,notes:''}; }); this.updateStats(); this.updateSessionStatus(); }
+
+  newSession(){
+    if(Object.keys(this.sessionData.classifications).length>0){ if(!confirm('Start a new session? Current progress will be cleared.')) return; }
+    this.sessionData={sessionId:this.generateSessionId(),createdAt:new Date().toISOString(),classifications:{},settings:{}};
+    this.stats={approved:0,rejected:0,skipped:0,pending:0,total:this.images.length};
+    this.currentIndex=0; this.updateSessionWithImages();
+    if(this.projectId) localStorage.removeItem(this.projectId);
+    this.updateUI(); this.showToast('New session started');
+  }
+
+  persistSettings(){
+    this.sessionData.settings={buildingColor:this.buildingColor, nonBuildingColor:this.nonBuildingColor,invertMask:this.invertMask, transparency:this.transparency,transparentNonBuilding:this.transparentNonBuilding, autoAdvance:this.autoAdvance,currentIndex:this.currentIndex,lastViewedFilename:this.images[this.currentIndex]?this.images[this.currentIndex].name:null};
+    this.saveToLocalStorage();
+  }
+
+  saveSession(){
+    if(!this.images.length){ this.showToast('No data to save'); return; }
+    this.persistSettings(); this.sessionData.lastSaved=new Date().toISOString();
+    const blob=new Blob([JSON.stringify(this.sessionData,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`image_analysis_session_${this.sessionData.sessionId}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    this.showToast('Session saved successfully'); this.updateSessionStatus();
+  }
+
+  loadSession(file){
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      try{
+        const data=JSON.parse(e.target.result);
+        if(!data.classifications || !data.sessionId) throw new Error('Invalid session file');
+        this.sessionData=data;
+        if(this.images.length){
+          if(data.settings) this.applySettings(data.settings);
+          let restored=false;
+          if(data.settings && data.settings.lastViewedFilename){
+            const idx=this.images.findIndex(im=>im.name===data.settings.lastViewedFilename);
+            if(idx>=0){ this.currentIndex=idx; restored=true; }
+          }
+          if(!restored && typeof (data.settings?.currentIndex)==='number'){ this.currentIndex=Math.min(Math.max(0,data.settings.currentIndex), Math.max(0,this.images.length-1)); }
+          this.updateStats(); this.updateUI(); this.updateSessionStatus(); this.drawImage(); this.saveToLocalStorage();
+          this.showToast(`Session loaded (${Object.keys(data.classifications).length} images)`);
+        } else {
+          this.deferredRestore={settings:data.settings||{},currentIndex:data.settings?.currentIndex||0,lastViewedFilename:data.settings?.lastViewedFilename||null};
+          this.showToast('Session loaded. Load images to apply.');
+        }
+      }catch(err){ console.error(err); this.showToast('Error loading session file'); }
+    };
+    reader.readAsText(file);
+  }
+
+  setImageStatus(status){
+    if(!this.images.length || this.currentIndex>=this.images.length) return;
+    const img=this.images[this.currentIndex];
+    this.sessionData.classifications[img.name]={status,timestamp:new Date().toISOString(),notes:''};
+    this.updateStats(); this.updateCurrentImageStatus(); this.updateUI(); this.persistSettings(); this.showToast(`Image ${status}`);
+  }
+
+  afterActionAdvance(){
+    if(!this.autoAdvance) return;
+    const nextPendingIdx=this.findNextPendingIndex(this.currentIndex+1);
+    if(nextPendingIdx!==-1) this.currentIndex=nextPendingIdx;
+    else if(this.currentIndex<this.images.length-1) this.currentIndex++;
+    this.resetView(); this.drawImage(); this.updateUI();
+  }
+
+  clearImageStatus(){
+    if(!this.images.length || this.currentIndex>=this.images.length) return;
+    const img=this.images[this.currentIndex];
+    this.sessionData.classifications[img.name]={status:'pending',timestamp:null,notes:''};
+    this.updateStats(); this.updateCurrentImageStatus(); this.updateUI(); this.persistSettings(); this.showToast('Status cleared');
+  }
+
+  updateStats(){
+    this.stats={approved:0,rejected:0,skipped:0,pending:0,total:this.images.length};
+    Object.values(this.sessionData.classifications).forEach(c=>{ if(c&&c.status&&this.stats[c.status]!==undefined) this.stats[c.status]++; });
+  }
+
+  updateCurrentImageStatus(){
+    const display=document.getElementById('statusDisplay'); const actions=document.getElementById('statusActions');
+    if(!this.images.length || this.currentIndex>=this.images.length){ display.textContent='No image selected'; actions.style.display='none'; return; }
+    const img=this.images[this.currentIndex]; const c=this.sessionData.classifications[img.name];
+    if(c){ const cls=`status-${c.status}`; const txt=c.status.charAt(0).toUpperCase()+c.status.slice(1); const ts=c.timestamp?new Date(c.timestamp).toLocaleString():''; display.innerHTML=`<div>Status: <span class="status-indicator ${cls}">${txt}</span></div>${ts?`<div style="font-size:11px;opacity:.7;">Updated: ${ts}</div>`:''}`; }
+    else { display.innerHTML='<div>Status: <span class="status-indicator status-pending">Pending</span></div>'; }
+    actions.style.display='block';
+  }
+
+  updateSessionStatus(){
+    const el=document.getElementById('sessionStatus');
+    const totalClassified=this.stats.approved+this.stats.rejected+this.stats.skipped; const total=this.stats.total;
+    el.textContent= total>0 ? `Progress: ${totalClassified}/${total} (${Math.round(totalClassified/Math.max(1,total)*100)}%)` : 'No images loaded';
+  }
+
+  handleKeyboard(e){
+    switch(e.key.toLowerCase()){
+      case 'arrowleft': e.preventDefault(); this.previousImage(); break;
+      case 'arrowright': e.preventDefault(); this.nextImage(); break;
+      case 'a': if(!e.ctrlKey){ e.preventDefault(); this.setImageStatus('approved'); this.afterActionAdvance(); } break;
+      case 'r': if(!e.ctrlKey){ e.preventDefault(); this.setImageStatus('rejected'); this.afterActionAdvance(); } break;
+      case 's': if(!e.ctrlKey){ e.preventDefault(); this.setImageStatus('skipped'); this.afterActionAdvance(); } break;
+      case 'z': if(!e.ctrlKey){ e.preventDefault(); this.resetView(); this.drawImage(); } break;
+    }
+  }
+
+  previousImage(){ if(this.currentIndex>0){ this.currentIndex--; this.resetView(); this.drawImage(); this.updateUI(); this.updateCurrentImageStatus(); this.persistSettings(); } }
+  nextImage(){ if(this.currentIndex<this.images.length-1){ this.currentIndex++; this.resetView(); this.drawImage(); this.updateUI(); this.updateCurrentImageStatus(); this.persistSettings(); } }
+  findNextPendingIndex(start){ const n=this.images.length; if(n===0) return -1; for(let k=0;k<n;k++){ const idx=(start+k)%n; const name=this.images[idx].name; const c=this.sessionData.classifications[name]; if(!c || c.status==='pending') return idx; } return -1; }
+  jumpToNextPending(){ const idx=this.findNextPendingIndex(this.currentIndex+1); if(idx===-1){ this.showToast('No pending images left'); return; } this.currentIndex=idx; this.resetView(); this.drawImage(); this.updateUI(); }
+
+  createRandomSubset(){
+    if(!this.images.length){ this.showToast('No images loaded'); return; }
+    const pct=+document.getElementById('percentageSlider').value;
+    const count=Math.max(1,Math.floor(this.images.length*(pct/100)));
+    if(count>=this.images.length){ this.showToast('Percentage too high - using all images'); return; }
+    const bar=document.getElementById('progressBar'); const fill=document.getElementById('progressFill'); bar.style.display='block';
+    const indices=[]; while(indices.length<count){ const r=Math.floor(Math.random()*this.images.length); if(!indices.includes(r)) indices.push(r); }
+    indices.sort((a,b)=>a-b);
+    const newImages=[]; const oldImages=this.images; let k=0;
+    const step=()=>{ if(k>=indices.length){ this.images=newImages; const allowed=new Set(this.images.map(im=>im.name)); const newClass={}; for(const name of Object.keys(this.sessionData.classifications)){ if(allowed.has(name)) newClass[name]=this.sessionData.classifications[name]; } this.sessionData.classifications=newClass; this.stats.total=this.images.length; this.currentIndex=0; bar.style.display='none'; fill.style.width='0%'; this.newSession(); this.updateSessionWithImages(); this.updateUI(); this.drawImage(); this.saveToLocalStorage(); this.showToast(`Created subset with ${count} images`); return; } const idx=indices[k]; newImages.push(oldImages[idx]); fill.style.width=((k+1)/indices.length*100)+'%'; k++; setTimeout(step,15); }; step();
+  }
+
+  resizeCanvas(){
+    const container=document.getElementById('imageContainer');
+    const rect=container.getBoundingClientRect();
+    this.canvas.width = Math.max(60, rect.width - 24);
+    this.canvas.height = Math.max(60, rect.height - 24);
+    this.drawImage();
+  }
+
+  drawImage(){
+    const ctx=this.ctx;
+    ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    if(!this.images.length || this.currentIndex>=this.images.length){
+      ctx.fillStyle='rgba(255,255,255,.1)'; ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+      ctx.fillStyle='#fff'; ctx.font='14px Arial'; ctx.textAlign='center';
+      ctx.fillText('No images loaded', this.canvas.width/2, this.canvas.height/2);
+      return;
+    }
+    const currentImage=this.images[this.currentIndex];
+    const maskObj=this.findMaskForImage(currentImage.name);
+    const img=currentImage.img;
+    let scale=Math.min((this.canvas.width*0.9)/img.width, (this.canvas.height*0.9)/img.height);
+    scale=Math.min(scale, this.displayMaxDim/img.width, this.displayMaxDim/img.height);
+    scale*=this.zoom;
+    const drawW=img.width*scale, drawH=img.height*scale;
+    const drawX=(this.canvas.width-drawW)/2 + this.panX;
+    const drawY=(this.canvas.height-drawH)/2 + this.panY;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    if(maskObj){
+      const temp=document.createElement('canvas'); temp.width=drawW; temp.height=drawH;
+      const tctx=temp.getContext('2d'); tctx.drawImage(maskObj.img,0,0,drawW,drawH);
+      const imageData=tctx.getImageData(0,0,drawW,drawH); const data=imageData.data;
+      for(let i=0;i<data.length;i+=4){
+        const gray=data[i]; let isBuilding=(gray>127); if(this.invertMask) isBuilding=!isBuilding;
+        if(isBuilding){ data[i]=this.buildingColor.r; data[i+1]=this.buildingColor.g; data[i+2]=this.buildingColor.b; data[i+3]=255; }
+        else { if(this.transparentNonBuilding){ data[i+3]=0; } else { data[i]=this.nonBuildingColor.r; data[i+1]=this.nonBuildingColor.g; data[i+2]=this.nonBuildingColor.b; data[i+3]=255; } }
+      }
+      tctx.putImageData(imageData,0,0);
+      ctx.globalAlpha=this.transparency; ctx.drawImage(temp, drawX, drawY); ctx.globalAlpha=1.0;
+    }
+  }
+
+  startDrag(e){ this.isDragging=true; this.lastMousePos={x:e.clientX,y:e.clientY}; this.canvas.style.cursor='grabbing'; }
+  drag(e){ if(!this.isDragging) return; const dx=e.clientX-this.lastMousePos.x, dy=e.clientY-this.lastMousePos.y; this.panX+=dx; this.panY+=dy; this.lastMousePos={x:e.clientX,y:e.clientY}; this.drawImage(); }
+  endDrag(){ this.isDragging=false; this.canvas.style.cursor='grab'; }
+  handleZoom(e){ e.preventDefault(); const delta=e.deltaY>0?0.9:1.1; this.zoom=Math.max(0.1,Math.min(5,this.zoom*delta)); document.getElementById('zoomSlider').value=this.zoom*100; document.getElementById('zoomValue').textContent=Math.round(this.zoom*100)+'%'; this.drawImage(); }
+  resetView(){ this.zoom=1.0; this.panX=0; this.panY=0; document.getElementById('zoomSlider').value=100; document.getElementById('zoomValue').textContent='100%'; }
+
+  exportResults(){
+    if(!this.images.length){ this.showToast('No data to export'); return; }
+    const results={sessionInfo:{sessionId:this.sessionData.sessionId,createdAt:this.sessionData.createdAt,exportedAt:new Date().toISOString(),totalImages:this.stats.total,settings:{buildingColor:this.buildingColor,nonBuildingColor:this.nonBuildingColor,invertMask:this.invertMask,transparency:this.transparency,transparentNonBuilding:this.transparentNonBuilding,autoAdvance:this.autoAdvance}},summary:this.stats,details:this.images.map((im,idx)=>{const c=this.sessionData.classifications[im.name]||{status:'pending'}; const m=this.findMaskForImage(im.name); return {index:idx+1,filename:im.name,status:c.status,timestamp:c.timestamp,notes:c.notes||'',hasCorrespondingMask:!!m,maskFilename:m?m.name:null};})};
+    const blob=new Blob([JSON.stringify(results,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`image_analysis_results_${this.sessionData.sessionId}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    this.showToast('Results exported successfully');
+  }
+
+  async getImageBlob(img){ return new Promise((resolve)=>{ const c=document.createElement('canvas'); const ct=c.getContext('2d'); c.width=img.width; c.height=img.height; ct.drawImage(img,0,0); c.toBlob(resolve,'image/png'); }); }
+
+  async createOverlayBlob(image, mask){
+    return new Promise((resolve)=>{
+      const c=document.createElement('canvas'), ctx=c.getContext('2d');
+      c.width=image.img.width; c.height=image.img.height; ctx.drawImage(image.img,0,0);
+      const t=document.createElement('canvas'), tctx=t.getContext('2d');
+      t.width=image.img.width; t.height=image.img.height;
+      tctx.drawImage(mask.img,0,0,image.img.width,image.img.height);
+      const id=tctx.getImageData(0,0,image.img.width,image.img.height); const d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const gray=d[i]; let isBuilding=(gray>127); if(this.invertMask) isBuilding=!isBuilding;
+        if(isBuilding){ d[i]=this.buildingColor.r; d[i+1]=this.buildingColor.g; d[i+2]=this.buildingColor.b; d[i+3]=255; }
+        else { if(this.transparentNonBuilding){ d[i+3]=0; } else { d[i]=this.nonBuildingColor.r; d[i+1]=this.nonBuildingColor.g; d[i+2]=this.nonBuildingColor.b; d[i+3]=255; } }
+      }
+      tctx.putImageData(id,0,0); ctx.globalAlpha=this.transparency; ctx.drawImage(t,0,0); ctx.globalAlpha=1.0;
+      c.toBlob(resolve,'image/png');
+    });
+  }
+
+  generateReadmeContent(){
+    const s=this.stats; const date=new Date().toLocaleString();
+    return `# Image Analysis Project Results\n\n## Project Information\n- **Session ID**: ${this.sessionData.sessionId}\n- **Created**: ${new Date(this.sessionData.createdAt).toLocaleString()}\n- **Downloaded**: ${date}\n- **Total Images**: ${s.total}\n\n## Classification Summary\n- **Approved**: ${s.approved} images\n- **Rejected**: ${s.rejected} images\n- **Skipped**: ${s.skipped} images\n- **Pending**: ${s.pending} images\n\n## Settings Used\n- Building Color: RGB(${this.buildingColor.r}, ${this.buildingColor.g}, ${this.buildingColor.b})\n- Non-Building Color: RGB(${this.nonBuildingColor.r}, ${this.nonBuildingColor.g}, ${this.nonBuildingColor.b})\n- Mask Inverted: ${this.invertMask?'Yes':'No'}\n- Overlay Transparency: ${Math.round(this.transparency*100)}%\n- Non-Building Transparent: ${this.transparentNonBuilding?'Yes':'No'}\n- Auto-advance: ${this.autoAdvance?'On':'Off'}\n\nGenerated by Modern Image Overlay Viewer - GeoAI Research Tool\n`;
+  }
+
+  generateDetailedResults(){ return {sessionInfo:{sessionId:this.sessionData.sessionId,createdAt:this.sessionData.createdAt,downloadedAt:new Date().toISOString(),totalImages:this.stats.total,settings:{buildingColor:this.buildingColor,nonBuildingColor:this.nonBuildingColor,invertMask:this.invertMask,transparency:this.transparency,transparentNonBuilding:this.transparentNonBuilding,autoAdvance:this.autoAdvance}},summary:this.stats,classifications:this.sessionData.classifications,details:this.images.map((im,idx)=>{const c=this.sessionData.classifications[im.name]||{status:'pending'}; const m=this.findMaskForImage(im.name); return {index:idx+1,filename:im.name,status:c.status,timestamp:c.timestamp,notes:c.notes||'',hasCorrespondingMask:!!m,maskFilename:m?m.name:null};})}; }
+
+  generateCSVResults(){ const headers=['Index','Filename','Status','Timestamp','Notes','Has_Mask','Mask_Filename']; const rows=[headers.join(',')]; this.images.forEach((im,idx)=>{ const c=this.sessionData.classifications[im.name]||{status:'pending'}; const m=this.findMaskForImage(im.name); rows.push([idx+1,`"${im.name}"`,c.status,c.timestamp?`"${c.timestamp}"`:'',`"${(c.notes||'').replace(/"/g,'""')}"`,m?'Yes':'No',m?`"${m.name}"`:''].join(',')); }); return rows.join('\n'); }
+
+  async downloadCompleteProject(){
+    if(!this.images.length){ this.showToast('No images to download'); return; }
+    const includeMasks=document.getElementById('includeMasksInDownload').checked;
+    const includeOverlays=document.getElementById('includeOverlaysInDownload').checked;
+    const bar=document.getElementById('downloadProgress'); const fill=document.getElementById('downloadProgressFill'); const status=document.getElementById('downloadStatus');
+    bar.style.display='block'; fill.style.width='0%'; status.textContent='Preparing download...';
+    try{
+      const JSZip=await this.loadJSZip(); const zip=new JSZip();
+      const folders={approved:zip.folder('01_approved'),rejected:zip.folder('02_rejected'),skipped:zip.folder('03_skipped'),pending:zip.folder('04_pending')};
+      if(includeMasks){ folders.approvedMasks=zip.folder('01_approved/masks'); folders.rejectedMasks=zip.folder('02_rejected/masks'); folders.skippedMasks=zip.folder('03_skipped/masks'); folders.pendingMasks=zip.folder('04_pending/masks'); }
+      if(includeOverlays){ folders.approvedOverlays=zip.folder('01_approved/overlays'); folders.rejectedOverlays=zip.folder('02_rejected/overlays'); folders.skippedOverlays=zip.folder('03_skipped/overlays'); folders.pendingOverlays=zip.folder('04_pending/overlays'); }
+      zip.file('README.md', this.generateReadmeContent());
+      zip.file('session_data.json', JSON.stringify(this.sessionData,null,2));
+      zip.file('classification_results.json', JSON.stringify(this.generateDetailedResults(),null,2));
+      zip.file('classification_results.csv', this.generateCSVResults());
+      let processed=0; const totalItems=this.images.length*(1+(includeMasks?1:0)+(includeOverlays?1:0));
+      for(let i=0;i<this.images.length;i++){
+        const image=this.images[i]; const c=this.sessionData.classifications[image.name]||{status:'pending'}; const statusKey=c.status||'pending'; const mask=this.findMaskForImage(image.name);
+        status.textContent=`Processing ${image.name}...`;
+        const imageBlob=await this.getImageBlob(image.img); folders[statusKey].file(image.name,imageBlob); processed++; fill.style.width=(processed/totalItems*100)+'%';
+        if(includeMasks && mask){ const maskBlob=await this.getImageBlob(mask.img); folders[statusKey+'Masks'].file(mask.name,maskBlob); processed++; fill.style.width=(processed/totalItems*100)+'%'; }
+        if(includeOverlays && mask){ status.textContent=`Creating overlay for ${image.name}...`; const overlayBlob=await this.createOverlayBlob(image,mask); const overlayName=image.name.replace(/\.[^/.]+$/, '_overlay.png'); folders[statusKey+'Overlays'].file(overlayName,overlayBlob); processed++; fill.style.width=(processed/totalItems*100)+'%'; }
+        await new Promise(r=>setTimeout(r,5));
+      }
+      status.textContent='Creating zip file...';
+      const zipBlob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      const url=URL.createObjectURL(zipBlob);
+      const a=document.createElement('a'); a.href=url; a.download=`image_analysis_project_${this.sessionData.sessionId}_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+      bar.style.display='none'; fill.style.width='0%'; status.textContent='Packages images, masks, and results into organized folders';
+      this.showToast('Project downloaded successfully!');
+    }catch(err){ console.error(err); this.showToast('Error creating download package'); bar.style.display='none'; fill.style.width='0%'; status.textContent='Error occurred during download'; }
+  }
+
+  async loadJSZip(){ if(window.JSZip) return window.JSZip; return new Promise((resolve,reject)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'; s.onload=()=>resolve(window.JSZip); s.onerror=reject; document.head.appendChild(s); }); }
+
+  exportView(){
+    if(!this.images.length){ this.showToast('No image to export'); return; }
+    const currentImage=this.images[this.currentIndex];
+    const maskObj=this.findMaskForImage(currentImage.name);
+    const c=document.createElement('canvas'); const ctx=c.getContext('2d');
+    c.width=currentImage.img.width; c.height=currentImage.img.height;
+    ctx.drawImage(currentImage.img,0,0);
+    if(maskObj){
+      const t=document.createElement('canvas'); const tctx=t.getContext('2d');
+      t.width=currentImage.img.width; t.height=currentImage.img.height;
+      tctx.drawImage(maskObj.img,0,0,currentImage.img.width,currentImage.img.height);
+      const id=tctx.getImageData(0,0,currentImage.img.width,currentImage.img.height); const d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const gray=d[i]; let isBuilding=(gray>127); if(this.invertMask) isBuilding=!isBuilding;
+        if(isBuilding){ d[i]=this.buildingColor.r; d[i+1]=this.buildingColor.g; d[i+2]=this.buildingColor.b; d[i+3]=255; }
+        else{ if(this.transparentNonBuilding){ d[i+3]=0; } else{ d[i]=this.nonBuildingColor.r; d[i+1]=this.nonBuildingColor.g; d[i+2]=this.nonBuildingColor.b; d[i+3]=255; } }
+      }
+      tctx.putImageData(id,0,0); ctx.globalAlpha=this.transparency; ctx.drawImage(t,0,0); ctx.globalAlpha=1.0;
+    }
+    c.toBlob((blob)=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`overlay_export_${this.currentIndex+1}.png`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); this.showToast('View exported successfully'); });
+  }
+
+  updateUI(){
+    const has=this.images.length>0;
+    document.getElementById('prevBtn').disabled=!has || this.currentIndex<=0;
+    document.getElementById('nextBtn').disabled=!has || this.currentIndex>=this.images.length-1;
+    document.getElementById('navPrevBtn').disabled=!has || this.currentIndex<=0;
+    document.getElementById('navNextBtn').disabled=!has || this.currentIndex>=this.images.length-1;
+    document.getElementById('exportBtn').disabled=!has;
+    document.getElementById('exportResultsBtn').disabled=!has;
+    document.getElementById('createSubsetBtn').disabled=!has;
+    document.getElementById('downloadProjectBtn').disabled=!has;
+    document.getElementById('currentIndex').textContent=has?this.currentIndex+1:0;
+    document.getElementById('totalImages').textContent=this.images.length;
+    document.getElementById('approvedCount').textContent=this.stats.approved;
+    document.getElementById('rejectedCount').textContent=this.stats.rejected;
+    document.getElementById('skippedCount').textContent=this.stats.skipped;
+    document.getElementById('pendingCount').textContent=this.stats.pending;
+    document.getElementById('autoAdvanceCheckbox').checked=this.autoAdvance;
+    const info=document.getElementById('imageInfo');
+    info.textContent=has?`${this.images[this.currentIndex].name} (${this.currentIndex+1}/${this.images.length})`:'Select images to start';
+    this.updateCurrentImageStatus(); this.updateSessionStatus();
+  }
+
+  showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{ const app = new ModernImageOverlayApp(); window.addEventListener('resize',()=>setTimeout(()=>app.resizeCanvas(),80)); setTimeout(()=>app.resizeCanvas(),120); });
+</script>
+</body>
+</html>
