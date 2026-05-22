@@ -4,7 +4,7 @@ import ControlPanel from '../components/ControlPanel.astro';
 import ImagePanel from '../components/ImagePanel.astro';
 ---
 
-<Layout title="🔬 Image Overlay Viewer - GeoAI">
+<Layout title="🔬 Image Overlay Viewer - Geominds">
 	<div class="container">
 		<main class="main-content">
 			<ControlPanel />
@@ -16,6 +16,135 @@ import ImagePanel from '../components/ImagePanel.astro';
 	<div class="toast" id="toast">
 		<span class="toast-icon">✨</span>
 		<span id="toastText">System Ready</span>
+	</div>
+
+	<!-- Options Modal -->
+	<div class="modal-backdrop" id="optionsModal">
+		<div class="modal-content glass-panel" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
+			<div class="modal-header">
+				<h2>⚙️ Advanced Options & Settings</h2>
+				<button class="modal-close-btn" id="optionsModalCloseBtn">&times;</button>
+			</div>
+			<div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+				<!-- Session Management -->
+				<div class="control-group">
+					<h3>💾 Session Management</h3>
+					<div class="session-controls">
+						<button class="btn btn-success btn-small" id="saveSessionBtn">💾 Save</button>
+						<button class="btn btn-secondary btn-small" id="loadSessionBtn">📂 Load</button>
+						<button class="btn btn-warning btn-small" id="newSessionBtn">🔄 New</button>
+					</div>
+					<input type="file" id="sessionInput" class="file-input" accept=".json">
+					<div id="sessionStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
+				</div>
+
+				<!-- Mask Classes Configuration -->
+				<div class="control-group">
+					<h3>🎨 Mask Classes</h3>
+					<div class="class-count-input">
+						<label for="numClassesInput">Number of classes:</label>
+						<input type="number" id="numClassesInput" min="1" max="50" value="2">
+					</div>
+
+					<div class="background-class-row">
+						<label>Background color (unmatched)</label>
+						<input type="color" id="backgroundColorPicker" value="#000000" title="Background color">
+					</div>
+
+					<div class="class-labels-header">
+						<span>Label</span>
+						<span>Pixel Val</span>
+						<span>Color</span>
+						<span></span>
+					</div>
+					<div class="class-list" id="classListContainer">
+						<!-- Dynamic class rows inserted here -->
+					</div>
+					<div class="class-info" id="classInfo">Configure pixel values and colors for each mask class</div>
+
+					<label class="checkbox-container">
+						<input type="checkbox" id="transparentBackgroundCheckbox" checked>
+						<span class="checkbox-checkmark"></span>
+						Make background transparent
+					</label>
+				</div>
+
+				<!-- Random Subset -->
+				<div class="control-group">
+					<h3>🎲 Random Subset</h3>
+					<div class="slider-container">
+						<label for="percentageSlider">Percentage: <span id="percentageValue">20%</span></label>
+						<input type="range" id="percentageSlider" class="slider" min="1" max="100" value="20">
+					</div>
+					<button class="btn btn-warning" id="createSubsetBtn" disabled>Create Random Subset</button>
+					<div class="progress-bar" id="progressBar" style="display: none;">
+						<div class="progress-fill" id="progressFill"></div>
+					</div>
+				</div>
+
+				<!-- Download Complete Project -->
+				<div class="control-group">
+					<h3>📥 Download Complete Project</h3>
+					<button class="btn btn-warning" id="downloadProjectBtn" disabled>📥 Download Sorted Project</button>
+					<div class="progress-bar" id="downloadProgress" style="display: none;">
+						<div class="progress-fill" id="downloadProgressFill"></div>
+					</div>
+					<div id="downloadStatus" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px; text-align: center;">
+						Packages images, masks, and metadata into organized directories.
+					</div>
+					<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+						<label class="checkbox-container">
+							<input type="checkbox" id="includeMasksInDownload" checked>
+							<span class="checkbox-checkmark"></span>
+							Include masks in download
+						</label>
+						<label class="checkbox-container">
+							<input type="checkbox" id="includeOverlaysInDownload">
+							<span class="checkbox-checkmark"></span>
+							Include overlay previews
+						</label>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Help / Shortcuts Modal -->
+	<div class="modal-backdrop" id="helpModal">
+		<div class="modal-content glass-panel">
+			<div class="modal-header">
+				<h2>⌨️ Keyboard Shortcuts & Help</h2>
+				<button class="modal-close-btn" id="helpModalCloseBtn">&times;</button>
+			</div>
+			<div class="modal-body">
+				<div class="keyboard-shortcuts">
+					<div class="shortcut-item">
+						<span>Previous Image</span>
+						<span class="shortcut-key">←</span>
+					</div>
+					<div class="shortcut-item">
+						<span>Next Image</span>
+						<span class="shortcut-key">→</span>
+					</div>
+					<div class="shortcut-item">
+						<span>Approve Status</span>
+						<span class="shortcut-key">A</span>
+					</div>
+					<div class="shortcut-item">
+						<span>Reject Status</span>
+						<span class="shortcut-key">R</span>
+					</div>
+					<div class="shortcut-item">
+						<span>Skip Status</span>
+						<span class="shortcut-key">S</span>
+					</div>
+					<div class="shortcut-item">
+						<span>Reset Zoom</span>
+						<span class="shortcut-key">Z</span>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </Layout>
 

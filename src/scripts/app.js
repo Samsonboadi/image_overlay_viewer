@@ -25,7 +25,7 @@ export class ModernImageOverlayApp {
         this.backgroundColor = { r: 0, g: 0, b: 0 };
         this.maskClasses = [
             { label: 'Background', pixelValue: 0, color: { r: 0, g: 0, b: 0 }, visible: false },
-            { label: 'Ditch', pixelValue: 1, color: { r: 255, g: 0, b: 0 }, visible: true }
+            { label: 'Ditch', pixelValue: 1, color: { r: 0, g: 255, b: 0 }, visible: true }
         ];
         
         // Azure Integration properties
@@ -92,7 +92,7 @@ export class ModernImageOverlayApp {
             hash = ((hash << 5) + hash) + names.charCodeAt(i);
             hash |= 0;
         }
-        return 'geoai_overlay_' + (hash >>> 0);
+        return 'geominds_overlay_' + (hash >>> 0);
     }
     
     // --- Multi-class UI ---
@@ -272,6 +272,61 @@ export class ModernImageOverlayApp {
     }
     
     setupEventListeners() {
+        // Toolbar: Options Modal Toggle
+        const optionsBtn = document.getElementById('optionsToggleBtn');
+        const optionsModal = document.getElementById('optionsModal');
+        const optionsCloseBtn = document.getElementById('optionsModalCloseBtn');
+        if (optionsBtn && optionsModal) {
+            optionsBtn.addEventListener('click', () => {
+                optionsModal.classList.add('open');
+            });
+        }
+        if (optionsCloseBtn && optionsModal) {
+            optionsCloseBtn.addEventListener('click', () => {
+                optionsModal.classList.remove('open');
+            });
+        }
+        if (optionsModal) {
+            optionsModal.addEventListener('click', (e) => {
+                if (e.target === optionsModal) {
+                    optionsModal.classList.remove('open');
+                }
+            });
+        }
+        
+        // Toolbar: Help Modal
+        const helpBtn = document.getElementById('helpToggleBtn');
+        const helpModal = document.getElementById('helpModal');
+        const helpCloseBtn = document.getElementById('helpModalCloseBtn');
+        if (helpBtn && helpModal) {
+            helpBtn.addEventListener('click', () => {
+                helpModal.classList.add('open');
+            });
+        }
+        if (helpCloseBtn && helpModal) {
+            helpCloseBtn.addEventListener('click', () => {
+                helpModal.classList.remove('open');
+            });
+        }
+        if (helpModal) {
+            helpModal.addEventListener('click', (e) => {
+                if (e.target === helpModal) {
+                    helpModal.classList.remove('open');
+                }
+            });
+        }
+
+        // Collapsible Azure Section
+        const azureToggleHeader = document.getElementById('azureToggleHeader');
+        const azureConnectionBox = document.getElementById('azureConnectionBox');
+        if (azureToggleHeader && azureConnectionBox) {
+            azureToggleHeader.addEventListener('click', () => {
+                const isHidden = azureConnectionBox.style.display === 'none';
+                azureConnectionBox.style.display = isHidden ? 'block' : 'none';
+                azureToggleHeader.classList.toggle('open', isHidden);
+            });
+        }
+
         // Local File inputs
         document.getElementById('imageInput').addEventListener('change', (e) => {
             this.isAzureMode = false;
@@ -363,8 +418,10 @@ export class ModernImageOverlayApp {
         });
         
         // Navigation & Exporters
-        document.getElementById('prevBtn').addEventListener('click', () => this.previousImage());
-        document.getElementById('nextBtn').addEventListener('click', () => this.nextImage());
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        if (prevBtn) prevBtn.addEventListener('click', () => this.previousImage());
+        if (nextBtn) nextBtn.addEventListener('click', () => this.nextImage());
         document.getElementById('exportBtn').addEventListener('click', () => this.exportView());
         document.getElementById('exportResultsBtn').addEventListener('click', () => this.exportResults());
         document.getElementById('createSubsetBtn').addEventListener('click', () => this.createRandomSubset());
@@ -1435,9 +1492,9 @@ export class ModernImageOverlayApp {
         const skp = this.stats.skipped;
         const pnd = this.stats.pending;
         
-        return `# GeoAI Image Analysis Project Export
+        return `# Geominds Image Analysis Project Export
 
-This archive contains the sorted results of your GeoAI image analysis session.
+This archive contains the sorted results of your Geominds image analysis session.
 
 ## Classification Summary
 - **Total Images**: ${total}
@@ -1593,7 +1650,7 @@ This archive contains the sorted results of your GeoAI image analysis session.
             const url = URL.createObjectURL(zipContent);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `geoai_overlay_project_${this.sessionData.sessionId}.zip`;
+            a.download = `geominds_overlay_project_${this.sessionData.sessionId}.zip`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1619,8 +1676,10 @@ This archive contains the sorted results of your GeoAI image analysis session.
         const hasImages = this.images.length > 0;
         
         // Update navigation buttons
-        document.getElementById('prevBtn').disabled = !hasImages || this.currentIndex <= 0;
-        document.getElementById('nextBtn').disabled = !hasImages || this.currentIndex >= this.images.length - 1;
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        if (prevBtn) prevBtn.disabled = !hasImages || this.currentIndex <= 0;
+        if (nextBtn) nextBtn.disabled = !hasImages || this.currentIndex >= this.images.length - 1;
         document.getElementById('navPrevBtn').disabled = !hasImages || this.currentIndex <= 0;
         document.getElementById('navNextBtn').disabled = !hasImages || this.currentIndex >= this.images.length - 1;
         
