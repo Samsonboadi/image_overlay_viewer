@@ -777,7 +777,10 @@ export class ModernImageOverlayApp {
             localStorage.removeItem(this.projectId);
         }
         
+        this.resetView();
+        this.drawImage();
         this.updateUI();
+        this.persistSettings();
         this.showToast('New session started');
     }
     
@@ -1257,7 +1260,37 @@ export class ModernImageOverlayApp {
                     this.drawImage();
                 }
                 break;
+            case 't':
+                if (!e.ctrlKey) {
+                    e.preventDefault();
+                    this.toggleMaskVisibility();
+                }
+                break;
         }
+    }
+
+    toggleMaskVisibility() {
+        if (this.transparency > 0) {
+            this.previousTransparency = this.transparency;
+            this.transparency = 0;
+        } else {
+            this.transparency = this.previousTransparency !== undefined ? this.previousTransparency : 0.5;
+            if (this.transparency === 0) this.transparency = 0.5;
+        }
+        
+        const slider = document.getElementById('transparencySlider');
+        if (slider) {
+            slider.value = Math.round(this.transparency * 100);
+        }
+        const valSpan = document.getElementById('transparencyValue');
+        if (valSpan) {
+            valSpan.textContent = Math.round(this.transparency * 100) + '%';
+        }
+        
+        this.drawImage();
+        this.persistSettings();
+        this.updateUI();
+        this.showToast(this.transparency > 0 ? 'Overlay mask visible' : 'Overlay mask hidden');
     }
     
     previousImage() {
@@ -1708,6 +1741,12 @@ This archive contains the sorted results of your Geominds image analysis session
         
         this.updateCurrentImageStatus();
         this.updateSessionStatus();
+        
+        // Update mask status badge
+        const badge = document.getElementById('maskStatusBadge');
+        if (badge) {
+            badge.style.display = this.transparency === 0 ? 'flex' : 'none';
+        }
     }
     
     showToast(message) {
