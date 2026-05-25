@@ -390,6 +390,7 @@ export class ModernImageOverlayApp {
             document.getElementById('transparencyValue').textContent = e.target.value + '%';
             this.drawImage();
             this.persistSettings();
+            this.updateUI();
         });
         
         document.getElementById('zoomSlider').addEventListener('input', (e) => {
@@ -1290,7 +1291,6 @@ export class ModernImageOverlayApp {
         this.drawImage();
         this.persistSettings();
         this.updateUI();
-        this.showToast(this.transparency > 0 ? 'Overlay mask visible' : 'Overlay mask hidden');
     }
     
     previousImage() {

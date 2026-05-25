@@ -767,7 +767,7 @@ body {
 /* Premium Toast Notification */
 .toast {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
   padding: 16px 24px;
   background: rgba(10, 12, 16, 0.85);
@@ -777,7 +777,7 @@ body {
   color: white;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  transform: translateY(100px) scale(0.9);
+  transform: translateY(-60px) scale(0.9);
   opacity: 0;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   z-index: 2000;
