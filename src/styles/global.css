@@ -588,16 +588,84 @@ body {
   cursor: grabbing;
 }
 
+/* Bottom bar: stats panel + navigation */
+.bottom-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.stats-mini-panel {
+  display: flex;
+  gap: 16px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.stats-mini-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-header);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.stat-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-header);
+}
+
+.stat-val.primary { color: var(--accent-secondary); }
+.stat-val.approved { color: #34d399; }
+.stat-val.rejected { color: #f87171; }
+.stat-val.skipped { color: #fbbf24; }
+.stat-val.pending { color: #9ca3af; }
+
+.export-mini-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.export-mini-panel .btn {
+  white-space: nowrap;
+}
+
 /* Bottom Navigation Bar */
 .navigation-bar {
   display: grid;
-  grid-template-columns: 140px 1fr 140px;
+  grid-template-columns: 120px 1fr 120px;
   align-items: center;
-  margin-top: 20px;
-  padding: 14px 20px;
+  padding: 10px 16px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
+  flex: 1;
 }
 
 .nav-btn {

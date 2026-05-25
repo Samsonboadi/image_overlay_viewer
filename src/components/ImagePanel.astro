@@ -9,11 +9,41 @@
     </div>
     <canvas id="imageCanvas" class="image-display"></canvas>
   </div>
-  <div class="navigation-bar">
-    <button class="nav-btn" id="navPrevBtn" disabled>⬅️ Previous</button>
-    <div class="image-info-wrapper">
-      <span id="imageInfo">Select images to start</span>
+  <div class="bottom-bar">
+    <div class="stats-mini-panel glass-panel">
+      <span class="stats-mini-title">Statistics</span>
+      <div class="stat-item">
+        <span class="stat-label">Index</span>
+        <span class="stat-val primary"><span id="currentIndex">0</span> / <span id="totalImages">0</span></span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Approved</span>
+        <span class="stat-val approved" id="approvedCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Rejected</span>
+        <span class="stat-val rejected" id="rejectedCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Skipped</span>
+        <span class="stat-val skipped" id="skippedCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Pending</span>
+        <span class="stat-val pending" id="pendingCount">0</span>
+      </div>
     </div>
-    <button class="nav-btn" id="navNextBtn" disabled>➡️ Next</button>
+    <div class="export-mini-panel glass-panel">
+      <span class="stats-mini-title">Export</span>
+      <button class="btn btn-secondary btn-small" id="exportBtn" disabled>💾 View</button>
+      <button class="btn btn-secondary btn-small" id="exportResultsBtn" disabled>📊 Results</button>
+    </div>
+    <div class="navigation-bar">
+      <button class="nav-btn" id="navPrevBtn" disabled>⬅️ Previous</button>
+      <div class="image-info-wrapper">
+        <span id="imageInfo">Select images to start</span>
+      </div>
+      <button class="nav-btn" id="navNextBtn" disabled>➡️ Next</button>
+    </div>
   </div>
 </section>
