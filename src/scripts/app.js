@@ -666,16 +666,26 @@ export class ModernImageOverlayApp {
         
         this.images.sort((a, b) => a.name.localeCompare(b.name));
         if (!append) this.currentIndex = 0;
+
+        const { discardedImages, discardedMasks } = this._reconcileImageMaskPairs();
+
         this.stats.total = this.images.length;
         this.projectId = this.computeProjectId();
-        
+
         this.updateSessionWithImages();
-        
+
         if (!this.tryRestoreFromLocalStorage()) {
             this.saveToLocalStorage();
         }
-        
-        this.showToast(`Loaded ${this.images.length} images`);
+
+        if (discardedImages > 0 || discardedMasks > 0) {
+            const parts = [];
+            if (discardedImages > 0) parts.push(`${discardedImages} image${discardedImages > 1 ? 's' : ''}`);
+            if (discardedMasks > 0) parts.push(`${discardedMasks} mask${discardedMasks > 1 ? 's' : ''}`);
+            this.showToast(`Loaded ${this.images.length} images — discarded ${parts.join(' and ')} without a match`);
+        } else {
+            this.showToast(`Loaded ${this.images.length} images`);
+        }
         this.updateUI();
         this.resizeCanvas();
         this.drawImage();
@@ -748,8 +758,17 @@ export class ModernImageOverlayApp {
         for (const m of this.masks) {
             this.masksMap.set(this.normalizeBase(m.name), m);
         }
-        
-        this.showToast(`Loaded ${this.masks.length} masks`);
+
+        const { discardedImages, discardedMasks } = this._reconcileImageMaskPairs();
+
+        if (discardedImages > 0 || discardedMasks > 0) {
+            const parts = [];
+            if (discardedMasks > 0) parts.push(`${discardedMasks} mask${discardedMasks > 1 ? 's' : ''}`);
+            if (discardedImages > 0) parts.push(`${discardedImages} image${discardedImages > 1 ? 's' : ''}`);
+            this.showToast(`Loaded ${this.masks.length} masks — discarded ${parts.join(' and ')} without a match`);
+        } else {
+            this.showToast(`Loaded ${this.masks.length} masks`);
+        }
         this.updateUI();
         this.drawImage();
 
@@ -761,6 +780,29 @@ export class ModernImageOverlayApp {
     
     findMaskForImage(imageName) {
         return this.masksMap.get(this.normalizeBase(imageName)) || null;
+    }
+
+    _reconcileImageMaskPairs() {
+        if (!this.images.length || !this.masks.length) return { discardedImages: 0, discardedMasks: 0 };
+
+        const maskBaseNames = new Set(this.masks.map(m => this.normalizeBase(m.name)));
+        const imageBaseNames = new Set(this.images.map(im => this.normalizeBase(im.name)));
+
+        const beforeImages = this.images.length;
+        const beforeMasks = this.masks.length;
+
+        this.images = this.images.filter(im => maskBaseNames.has(this.normalizeBase(im.name)));
+        this.masks = this.masks.filter(m => imageBaseNames.has(this.normalizeBase(m.name)));
+
+        this.masksMap.clear();
+        for (const m of this.masks) {
+            this.masksMap.set(this.normalizeBase(m.name), m);
+        }
+
+        return {
+            discardedImages: beforeImages - this.images.length,
+            discardedMasks: beforeMasks - this.masks.length
+        };
     }
     
     updateSessionWithImages() {
