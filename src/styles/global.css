@@ -662,14 +662,25 @@ body {
 
 /* Bottom Navigation Bar */
 .navigation-bar {
-  display: grid;
-  grid-template-columns: 120px 1fr 120px 120px;
+  display: flex;
   align-items: center;
-  padding: 10px 16px;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
   flex: 1;
+  min-width: 0;
+}
+
+.image-info-wrapper {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
 }
 
 .nav-btn {
@@ -697,16 +708,12 @@ body {
   cursor: not-allowed;
 }
 
-.image-info-wrapper {
-  text-align: center;
-}
-
 #imageInfo {
   font-family: var(--font-header);
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-main);
-  word-break: break-all;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 /* Custom premium checkboxes */
@@ -829,11 +836,6 @@ body {
   
   .header-badge {
     align-self: flex-end;
-  }
-  
-  .navigation-bar {
-    grid-template-columns: 1fr;
-    gap: 12px;
   }
   
   .nav-btn {
