@@ -1763,6 +1763,7 @@ This archive contains the sorted results of your Geominds image analysis session
         if (nextBtn) nextBtn.disabled = !hasImages || this.currentIndex >= this.images.length - 1;
         document.getElementById('navPrevBtn').disabled = !hasImages || this.currentIndex <= 0;
         document.getElementById('navNextBtn').disabled = !hasImages || this.currentIndex >= this.images.length - 1;
+        document.getElementById('nextPendingBtn').disabled = this.findNextPendingIndex(0) === -1;
         
         // Update action buttons
         document.getElementById('exportBtn').disabled = !hasImages;
