@@ -201,6 +201,10 @@ body {
 }
 
 /* Upload Dropzones */
+.file-drop-zone > * {
+  pointer-events: none;
+}
+
 .file-drop-zone {
   border: 2px dashed rgba(255, 255, 255, 0.15);
   border-radius: 12px;

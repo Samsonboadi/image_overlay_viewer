@@ -383,10 +383,12 @@ export class ModernImageOverlayApp {
         // Drop zones
         this.setupDropZone('imageDropZone', 'imageInput');
         this.setupDropZone('maskDropZone', 'maskInput');
+        this.setupModalDropZones();
         
         // Sliders
         document.getElementById('transparencySlider').addEventListener('input', (e) => {
             this.transparency = e.target.value / 100;
+            if (this.transparency === 0) this.maskToggledOff = false;
             document.getElementById('transparencyValue').textContent = e.target.value + '%';
             this.drawImage();
             this.persistSettings();
@@ -613,16 +615,23 @@ export class ModernImageOverlayApp {
     async loadImages(files) {
         const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
         if (!imageFiles.length) return;
-        
+
+        let append = false;
+        if (this.images.length > 0) {
+            const choice = await this.showLoadConfirm(this.images.length, 'Images');
+            if (choice === 'cancel') return;
+            append = choice === 'append';
+        }
+
         const progressBar = document.getElementById('imageLoadProgress');
         const progressFill = document.getElementById('imageProgressFill');
         const statusDiv = document.getElementById('imageLoadStatus');
-        
+
         progressBar.style.display = 'block';
         progressFill.style.width = '0%';
         statusDiv.textContent = 'Loading images...';
-        
-        this.images = [];
+
+        if (!append) this.images = [];
         
         for (let i = 0; i < imageFiles.length; i++) {
             const file = imageFiles[i];
@@ -656,7 +665,7 @@ export class ModernImageOverlayApp {
         statusDiv.textContent = `✅ Loaded ${this.images.length} images`;
         
         this.images.sort((a, b) => a.name.localeCompare(b.name));
-        this.currentIndex = 0;
+        if (!append) this.currentIndex = 0;
         this.stats.total = this.images.length;
         this.projectId = this.computeProjectId();
         
@@ -670,22 +679,36 @@ export class ModernImageOverlayApp {
         this.updateUI();
         this.resizeCanvas();
         this.drawImage();
+
+        if (this.masks.length === 0) {
+            const maskFiles = await this.showMaskUploadModal();
+            if (maskFiles) await this.loadMasks(maskFiles);
+        }
     }
     
     async loadMasks(files) {
         const maskFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
         if (!maskFiles.length) return;
-        
+
+        let append = false;
+        if (this.masks.length > 0) {
+            const choice = await this.showLoadConfirm(this.masks.length, 'Masks');
+            if (choice === 'cancel') return;
+            append = choice === 'append';
+        }
+
         const progressBar = document.getElementById('maskLoadProgress');
         const progressFill = document.getElementById('maskProgressFill');
         const statusDiv = document.getElementById('maskLoadStatus');
-        
+
         progressBar.style.display = 'block';
         progressFill.style.width = '0%';
         statusDiv.textContent = 'Loading masks...';
-        
-        this.masks = [];
-        this.masksMap.clear();
+
+        if (!append) {
+            this.masks = [];
+            this.masksMap.clear();
+        }
         
         for (let i = 0; i < maskFiles.length; i++) {
             const file = maskFiles[i];
@@ -729,6 +752,11 @@ export class ModernImageOverlayApp {
         this.showToast(`Loaded ${this.masks.length} masks`);
         this.updateUI();
         this.drawImage();
+
+        if (this.images.length === 0) {
+            const imageFiles = await this.showImageUploadModal();
+            if (imageFiles) await this.loadImages(imageFiles);
+        }
     }
     
     findMaskForImage(imageName) {
@@ -771,6 +799,9 @@ export class ModernImageOverlayApp {
             total: this.images.length
         };
         
+        this.images = [];
+        this.masks = [];
+        this.masksMap.clear();
         this.currentIndex = 0;
         this.updateSessionWithImages();
         
@@ -783,6 +814,7 @@ export class ModernImageOverlayApp {
         this.updateUI();
         this.persistSettings();
         this.showToast('New session started');
+        document.getElementById('optionsModal').classList.remove('open');
     }
     
     persistSettings() {
@@ -915,7 +947,11 @@ export class ModernImageOverlayApp {
         this.updateUI();
         this.persistSettings();
         
-        this.showToast(`Image ${status}`);
+        if (this.findNextPendingIndex(0) === -1) {
+            this.showToast('End of image stack. Load more to continue.');
+        } else {
+            this.showToast(`Image ${status}`);
+        }
     }
     
     afterActionAdvance() {
@@ -1219,7 +1255,10 @@ export class ModernImageOverlayApp {
     }
     
     handleKeyboard(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        const tag = e.target.tagName;
+        const type = e.target.type;
+        if (tag === 'TEXTAREA') return;
+        if (tag === 'INPUT' && ['text', 'number', 'password', 'search', 'email', 'url'].includes(type)) return;
 
         switch(e.key.toLowerCase()) {
             case 'arrowleft':
@@ -1267,6 +1306,12 @@ export class ModernImageOverlayApp {
                     this.toggleMaskVisibility();
                 }
                 break;
+            case 'j':
+                if (!e.ctrlKey) {
+                    e.preventDefault();
+                    document.getElementById('nextPendingBtn').click();
+                }
+                break;
         }
     }
 
@@ -1274,9 +1319,12 @@ export class ModernImageOverlayApp {
         if (this.transparency > 0) {
             this.previousTransparency = this.transparency;
             this.transparency = 0;
+            this.maskToggledOff = true;
         } else {
-            this.transparency = this.previousTransparency !== undefined ? this.previousTransparency : 0.5;
-            if (this.transparency === 0) this.transparency = 0.5;
+            this.transparency = (this.maskToggledOff && this.previousTransparency > 0)
+                ? this.previousTransparency
+                : 0.5;
+            this.maskToggledOff = false;
         }
         
         const slider = document.getElementById('transparencySlider');
@@ -1749,6 +1797,151 @@ This archive contains the sorted results of your Geominds image analysis session
         }
     }
     
+    setupModalDropZones() {
+        // ---- MASK UPLOAD MODAL ----
+        const maskDZ = document.getElementById('maskUploadDropZone');
+        const maskInput = document.getElementById('maskUploadInput');
+
+        maskDZ.addEventListener('dragover', (e) => { e.preventDefault(); maskDZ.classList.add('dragover'); });
+        maskDZ.addEventListener('dragleave', () => maskDZ.classList.remove('dragover'));
+        maskDZ.addEventListener('drop', (e) => {
+            e.preventDefault();
+            maskDZ.classList.remove('dragover');
+            maskInput.value = '';
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (files.length) this._runMaskAnalysis(files);
+        });
+        maskDZ.addEventListener('click', () => maskInput.click());
+        maskInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+            maskInput.value = '';
+            if (files.length) this._runMaskAnalysis(files);
+        });
+        document.getElementById('maskUploadConfirmBtn').addEventListener('click', () => {
+            document.getElementById('maskUploadModal').classList.remove('open');
+            if (this._maskModalResolve) { this._maskModalResolve(this._pendingMaskFiles); this._maskModalResolve = null; }
+        });
+        const closeMask = () => {
+            document.getElementById('maskUploadModal').classList.remove('open');
+            if (this._maskModalResolve) { this._maskModalResolve(null); this._maskModalResolve = null; }
+        };
+        document.getElementById('maskUploadSkipBtn').addEventListener('click', closeMask);
+        document.getElementById('maskUploadSkipFooterBtn').addEventListener('click', closeMask);
+
+        // ---- IMAGE UPLOAD MODAL ----
+        const imageDZ = document.getElementById('imageUploadDropZone');
+        const imageInput = document.getElementById('imageUploadInput');
+
+        imageDZ.addEventListener('dragover', (e) => { e.preventDefault(); imageDZ.classList.add('dragover'); });
+        imageDZ.addEventListener('dragleave', () => imageDZ.classList.remove('dragover'));
+        imageDZ.addEventListener('drop', (e) => {
+            e.preventDefault();
+            imageDZ.classList.remove('dragover');
+            imageInput.value = '';
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+            if (files.length) this._runImageAnalysis(files);
+        });
+        imageDZ.addEventListener('click', () => imageInput.click());
+        imageInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+            imageInput.value = '';
+            if (files.length) this._runImageAnalysis(files);
+        });
+        document.getElementById('imageUploadConfirmBtn').addEventListener('click', () => {
+            document.getElementById('imageUploadModal').classList.remove('open');
+            if (this._imageModalResolve) { this._imageModalResolve(this._pendingImageFiles); this._imageModalResolve = null; }
+        });
+        const closeImage = () => {
+            document.getElementById('imageUploadModal').classList.remove('open');
+            if (this._imageModalResolve) { this._imageModalResolve(null); this._imageModalResolve = null; }
+        };
+        document.getElementById('imageUploadSkipBtn').addEventListener('click', closeImage);
+        document.getElementById('imageUploadSkipFooterBtn').addEventListener('click', closeImage);
+    }
+
+    _runMaskAnalysis(files) {
+        this._pendingMaskFiles = files;
+        const imageBaseNames = new Set(this.images.map(im => this.normalizeBase(im.name)));
+        const matched = [], unmatched = [];
+        for (const f of files) {
+            (imageBaseNames.has(this.normalizeBase(f.name)) ? matched : unmatched).push(f.name);
+        }
+        const matchPct = Math.round((matched.length / this.images.length) * 100);
+        const color = matchPct === 100 ? '#34d399' : matchPct >= 50 ? '#fbbf24' : '#f87171';
+        document.getElementById('maskUploadMatchText').innerHTML =
+            `<span style="color:${color}; font-weight:700;">${matched.length} / ${this.images.length} masks matched</span> (${matchPct}%)`;
+        document.getElementById('maskUploadUnmatched').textContent = unmatched.length
+            ? `No match: ${unmatched.slice(0, 3).join(', ')}${unmatched.length > 3 ? ` +${unmatched.length - 3} more` : ''}`
+            : '';
+        document.getElementById('maskUploadMatchSummary').style.display = 'block';
+        document.getElementById('maskUploadConfirmBtn').style.display = matched.length > 0 ? 'block' : 'none';
+    }
+
+    _runImageAnalysis(files) {
+        this._pendingImageFiles = files;
+        const maskBaseNames = new Set(this.masks.map(m => this.normalizeBase(m.name)));
+        const matched = [], unmatched = [];
+        for (const f of files) {
+            (maskBaseNames.has(this.normalizeBase(f.name)) ? matched : unmatched).push(f.name);
+        }
+        const matchPct = Math.round((matched.length / this.masks.length) * 100);
+        const color = matchPct === 100 ? '#34d399' : matchPct >= 50 ? '#fbbf24' : '#f87171';
+        document.getElementById('imageUploadMatchText').innerHTML =
+            `<span style="color:${color}; font-weight:700;">${matched.length} / ${this.masks.length} images matched</span> (${matchPct}%)`;
+        document.getElementById('imageUploadUnmatched').textContent = unmatched.length
+            ? `No match: ${unmatched.slice(0, 3).join(', ')}${unmatched.length > 3 ? ` +${unmatched.length - 3} more` : ''}`
+            : '';
+        document.getElementById('imageUploadMatchSummary').style.display = 'block';
+        document.getElementById('imageUploadConfirmBtn').style.display = matched.length > 0 ? 'block' : 'none';
+    }
+
+    showImageUploadModal() {
+        return new Promise((resolve) => {
+            this._imageModalResolve = resolve;
+            this._pendingImageFiles = null;
+            document.getElementById('imageUploadMatchSummary').style.display = 'none';
+            document.getElementById('imageUploadConfirmBtn').style.display = 'none';
+            document.getElementById('imageUploadInput').value = '';
+            document.getElementById('imageUploadPrompt').textContent =
+                `${this.masks.length} masks loaded. Upload their corresponding image files.`;
+            document.getElementById('imageUploadModal').classList.add('open');
+        });
+    }
+
+    showMaskUploadModal() {
+        return new Promise((resolve) => {
+            this._maskModalResolve = resolve;
+            this._pendingMaskFiles = null;
+            document.getElementById('maskUploadMatchSummary').style.display = 'none';
+            document.getElementById('maskUploadConfirmBtn').style.display = 'none';
+            document.getElementById('maskUploadProgress').style.display = 'none';
+            document.getElementById('maskUploadProgressFill').style.width = '0%';
+            document.getElementById('maskUploadInput').value = '';
+            document.getElementById('maskUploadPrompt').textContent =
+                `${this.images.length} images loaded. Upload their corresponding mask files.`;
+            document.getElementById('maskUploadModal').classList.add('open');
+        });
+    }
+
+    showLoadConfirm(existingCount, type) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('loadConfirmModal');
+            document.getElementById('loadConfirmTitle').textContent = `${type} already loaded`;
+            document.getElementById('loadConfirmMessage').textContent =
+                `${existingCount} ${type.toLowerCase()} already in the stack. Append the new files or replace the stack?`;
+            modal.classList.add('open');
+
+            const close = (result) => {
+                modal.classList.remove('open');
+                resolve(result);
+            };
+
+            document.getElementById('loadConfirmAppendBtn').onclick = () => close('append');
+            document.getElementById('loadConfirmReplaceBtn').onclick = () => close('replace');
+            document.getElementById('loadConfirmCancelBtn').onclick = () => close('cancel');
+        });
+    }
+
     showToast(message) {
         const toast = document.getElementById('toast');
         if (toast) {

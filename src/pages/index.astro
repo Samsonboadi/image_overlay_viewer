@@ -26,6 +26,16 @@ import ImagePanel from '../components/ImagePanel.astro';
 				<button class="modal-close-btn" id="optionsModalCloseBtn">&times;</button>
 			</div>
 			<div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+				<!-- Navigation Behaviour -->
+				<div class="control-group">
+					<h3>🧭 Navigation</h3>
+					<label class="checkbox-container">
+						<input type="checkbox" id="autoAdvanceCheckbox" checked>
+						<span class="checkbox-checkmark"></span>
+						Auto-advance after action
+					</label>
+				</div>
+
 				<!-- Session Management -->
 				<div class="control-group">
 					<h3>💾 Session Management</h3>
@@ -143,9 +153,90 @@ import ImagePanel from '../components/ImagePanel.astro';
 						<span class="shortcut-key">Z</span>
 					</div>
 					<div class="shortcut-item">
+						<span>Jump to Next Pending</span>
+						<span class="shortcut-key">J</span>
+					</div>
+					<div class="shortcut-item">
 						<span>Toggle Mask</span>
 						<span class="shortcut-key">T</span>
 					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Post-Mask-Load: Upload Images Modal -->
+	<div class="modal-backdrop" id="imageUploadModal">
+		<div class="modal-content glass-panel" style="max-width: 460px;">
+			<div class="modal-header">
+				<h2>📸 Upload Images</h2>
+				<button class="modal-close-btn" id="imageUploadSkipBtn">&times;</button>
+			</div>
+			<div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+				<p id="imageUploadPrompt" style="font-size: 0.88rem; color: var(--text-muted);">
+					Upload the corresponding image files for your masks.
+				</p>
+				<div class="file-drop-zone" id="imageUploadDropZone">
+					<p>📸 Drop images here or click to browse</p>
+					<input type="file" id="imageUploadInput" class="file-input" multiple accept="image/*">
+				</div>
+				<div class="progress-bar" id="imageUploadProgress" style="display: none;">
+					<div class="progress-fill" id="imageUploadProgressFill"></div>
+				</div>
+				<div id="imageUploadMatchSummary" style="display: none; font-size: 0.82rem; border-radius: 10px; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
+					<div id="imageUploadMatchText"></div>
+					<div id="imageUploadUnmatched" style="margin-top: 8px; color: var(--text-dim);"></div>
+				</div>
+				<div style="display: flex; gap: 8px; margin-top: 4px;">
+					<button class="btn btn-secondary" id="imageUploadSkipFooterBtn">⏭️ Skip</button>
+					<button class="btn" id="imageUploadConfirmBtn" style="display: none;">✅ Use These Images</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Post-Image-Load: Upload Masks Modal -->
+	<div class="modal-backdrop" id="maskUploadModal">
+		<div class="modal-content glass-panel" style="max-width: 460px;">
+			<div class="modal-header">
+				<h2>🎭 Upload Masks</h2>
+				<button class="modal-close-btn" id="maskUploadSkipBtn">&times;</button>
+			</div>
+			<div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+				<p id="maskUploadPrompt" style="font-size: 0.88rem; color: var(--text-muted);">
+					Upload the corresponding mask files for your images.
+				</p>
+				<div class="file-drop-zone" id="maskUploadDropZone">
+					<p>🎭 Drop masks here or click to browse</p>
+					<input type="file" id="maskUploadInput" class="file-input" multiple accept="image/*">
+				</div>
+				<div class="progress-bar" id="maskUploadProgress" style="display: none;">
+					<div class="progress-fill" id="maskUploadProgressFill"></div>
+				</div>
+				<div id="maskUploadMatchSummary" style="display: none; font-size: 0.82rem; border-radius: 10px; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
+					<div id="maskUploadMatchText"></div>
+					<div id="maskUploadUnmatched" style="margin-top: 8px; color: var(--text-dim);"></div>
+				</div>
+				<div style="display: flex; gap: 8px; margin-top: 4px;">
+					<button class="btn btn-secondary" id="maskUploadSkipFooterBtn">⏭️ Skip</button>
+					<button class="btn" id="maskUploadConfirmBtn" style="display: none;">✅ Use These Masks</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Load Confirmation Modal -->
+	<div class="modal-backdrop" id="loadConfirmModal">
+		<div class="modal-content glass-panel" style="max-width: 360px;">
+			<div class="modal-header">
+				<h2 id="loadConfirmTitle">Stack not empty</h2>
+				<button class="modal-close-btn" id="loadConfirmCancelBtn">&times;</button>
+			</div>
+			<div class="modal-body">
+				<p id="loadConfirmMessage" style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;"></p>
+				<div style="display: flex; gap: 8px;">
+					<button class="btn btn-secondary" id="loadConfirmAppendBtn">➕ Append</button>
+					<button class="btn btn-danger" id="loadConfirmReplaceBtn">🔄 Replace</button>
 				</div>
 			</div>
 		</div>
