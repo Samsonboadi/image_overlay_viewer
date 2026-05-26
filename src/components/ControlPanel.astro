@@ -59,15 +59,13 @@
 
   <!-- Current Image Status -->
   <div class="control-group">
-    <h3>📋 Current Image Status</h3>
-    <div class="current-status" id="currentImageStatus">
-      <div id="statusDisplay">No image selected</div>
-      <div id="statusActions" class="status-actions-grid" style="display: none;">
-        <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
-        <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
-        <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
-        <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
-      </div>
+    <h3>📋 Current Image Status <span id="statusPill"></span></h3>
+    <div id="statusDisplay" style="display: none;"></div>
+    <div id="statusActions" class="status-actions-grid" style="display: none;">
+      <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
+      <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
+      <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
+      <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
     </div>
   </div>
 

@@ -1046,29 +1046,34 @@ export class ModernImageOverlayApp {
     updateCurrentImageStatus() {
         const statusDisplay = document.getElementById('statusDisplay');
         const statusActions = document.getElementById('statusActions');
-        
+        const statusPill = document.getElementById('statusPill');
+
         if (!this.images.length || this.currentIndex >= this.images.length) {
-            statusDisplay.textContent = 'No image selected';
+            statusPill.innerHTML = '';
+            statusDisplay.style.display = 'none';
             statusActions.style.display = 'none';
             return;
         }
-        
+
         const currentImage = this.images[this.currentIndex];
         const classification = this.sessionData.classifications[currentImage.name];
-        
+
         if (classification) {
             const statusClass = `status-${classification.status}`;
             const statusText = classification.status.charAt(0).toUpperCase() + classification.status.slice(1);
             const timestamp = classification.timestamp ? new Date(classification.timestamp).toLocaleString() : '';
-            
-            statusDisplay.innerHTML = `
-                <div>Status: <span class="status-indicator ${statusClass}">${statusText}</span></div>
-                ${timestamp ? `<div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">Updated: ${timestamp}</div>` : ''}
-            `;
+            statusPill.innerHTML = `<span class="status-indicator ${statusClass}">${statusText}</span>`;
+            if (timestamp) {
+                statusDisplay.innerHTML = `<div style="font-size: 11px; opacity: 0.7;">Updated: ${timestamp}</div>`;
+                statusDisplay.style.display = 'block';
+            } else {
+                statusDisplay.style.display = 'none';
+            }
         } else {
-            statusDisplay.innerHTML = '<div>Status: <span class="status-indicator status-pending">Pending</span></div>';
+            statusPill.innerHTML = '<span class="status-indicator status-pending">Pending</span>';
+            statusDisplay.style.display = 'none';
         }
-        
+
         statusActions.style.display = 'grid';
     }
     

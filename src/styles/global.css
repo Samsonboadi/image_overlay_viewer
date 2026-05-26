@@ -164,7 +164,7 @@ body {
 
 /* Sidebar Control Panel */
 .control-panel {
-  padding: 16px;
+  padding: 10px 16px 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -175,7 +175,7 @@ body {
 
 /* Card Control Group */
 .control-group {
-  padding: 18px;
+  padding: 18px 18px 10px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 14px;
@@ -198,6 +198,10 @@ body {
   gap: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   padding-bottom: 8px;
+}
+
+#statusPill {
+  margin-left: auto;
 }
 
 /* Upload Dropzones */
@@ -463,22 +467,10 @@ body {
   color: #9ca3af;
 }
 
-.current-status {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 8px;
-  border-left: 4px solid var(--accent-primary);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.current-status #statusDisplay {
-  font-size: 0.9rem;
-  color: var(--text-main);
-  font-weight: 500;
+#statusDisplay {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
 }
 
 .status-actions-grid {
@@ -1132,7 +1124,7 @@ body {
 .panel-toolbar {
   display: flex;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   width: 100%;
 }
 
