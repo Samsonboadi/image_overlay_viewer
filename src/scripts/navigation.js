@@ -27,6 +27,7 @@ export const navigationMixin = {
         const newBatchOffset = Math.max(0, oldBatchOffset - batchSize);
         const prevFiles = this.allDirectoryFiles.slice(newBatchOffset, oldBatchOffset);
 
+        this._autoLoadThreshold = this.pendingImageFiles.length;
         this.pendingImageFiles = this.allDirectoryFiles.slice(oldBatchOffset);
         this.batchOffset = newBatchOffset;
         this.images = [];
@@ -66,7 +67,8 @@ export const navigationMixin = {
             this.updateCurrentImageStatus();
             this.persistSettings();
         } else if (this.pendingImageFiles.length > 0) {
-            this.showNextBatchModal();
+            const autoLoad = this._autoLoadThreshold !== undefined && this.pendingImageFiles.length > this._autoLoadThreshold;
+            this.showNextBatchModal(false, autoLoad);
         }
     },
 

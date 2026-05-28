@@ -172,7 +172,7 @@ export const modalsMixin = {
         document.addEventListener('keydown', onKey);
     },
 
-    showNextBatchModal(jumpToPendingAfterLoad = false) {
+    showNextBatchModal(jumpToPendingAfterLoad = false, autoLoad = false) {
         const batchSize = this.maxBatchSize || Infinity;
         const nextImages = Math.min(batchSize, this.pendingImageFiles.length);
         const nextMasks = Math.min(batchSize, this.pendingMaskFiles.length);
@@ -199,11 +199,10 @@ export const modalsMixin = {
         const firstPendingBtn = document.getElementById('nextBatchFirstPendingBtn');
         firstPendingBtn.style.display = pendingInBatch > 0 ? '' : 'none';
 
-        modal.classList.add('open');
-
+        let onKey = null;
         const close = () => {
             modal.classList.remove('open');
-            document.removeEventListener('keydown', onKey);
+            if (onKey) document.removeEventListener('keydown', onKey);
         };
 
         const load = async () => {
@@ -241,7 +240,14 @@ export const modalsMixin = {
             this.showToast('No pending images left');
         };
 
-        const onKey = (e) => {
+        if (autoLoad) {
+            load();
+            return;
+        }
+
+        modal.classList.add('open');
+
+        onKey = (e) => {
             if (e.key === 'Enter') { e.preventDefault(); load(); }
             else if (e.key === 'Escape') { e.preventDefault(); close(); }
         };

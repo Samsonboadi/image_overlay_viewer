@@ -39,8 +39,9 @@ export const classificationMixin = {
             const c = this.sessionData.classifications[im.name];
             return c && c.status !== 'pending';
         });
-        if (allClassified) {
-            this.showNextBatchModal();
+        if (allClassified || this.currentIndex === this.images.length - 1) {
+            const autoLoad = this._autoLoadThreshold !== undefined && this.pendingImageFiles.length > this._autoLoadThreshold;
+            this.showNextBatchModal(false, autoLoad);
             return true;
         }
         return false;
