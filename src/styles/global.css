@@ -1311,3 +1311,18 @@ body {
     transform: translate(-50%, 0);
   }
 }
+
+/* Google Material Symbols Helper Class */
+.material-symbols-outlined {
+  font-size: 20px;
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
