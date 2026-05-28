@@ -239,10 +239,41 @@ import ImagePanel from '../components/ImagePanel.astro';
 			</div>
 			<div class="modal-body">
 				<p id="nextBatchMessage" style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;"></p>
-				<div style="display: flex; gap: 8px;">
+				<div style="display: flex; gap: 8px; flex-wrap: wrap;">
 					<button class="btn" id="nextBatchLoadBtn">Load images</button>
+					<button class="btn btn-warning" id="nextBatchFirstPendingBtn" style="display:none;">↩ First pending</button>
 					<button class="btn btn-secondary" id="nextBatchCancelBtn">Cancel</button>
 				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- New Session Confirm Modal -->
+	<div class="modal-backdrop" id="newSessionConfirmModal">
+		<div class="modal-content glass-panel" style="max-width: 400px;">
+			<div class="modal-header">
+				<h2>Start New Session?</h2>
+				<button class="modal-close-btn" id="newSessionConfirmCancelBtn">&times;</button>
+			</div>
+			<div class="modal-body">
+				<p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">This will start a new session and clear all statuses from previous images.</p>
+				<div style="display: flex; gap: 8px;">
+					<button class="btn btn-danger" id="newSessionConfirmOkBtn"><span class="material-symbols-outlined">restart_alt</span> Continue</button>
+					<button class="btn btn-secondary" id="newSessionConfirmCancelFooterBtn">Cancel</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Session Resume Modal -->
+	<div class="modal-backdrop" id="sessionResumeModal">
+		<div class="modal-content glass-panel" style="max-width: 360px;">
+			<div class="modal-header">
+				<h2><span class="material-symbols-outlined" style="font-size: 1.6rem; vertical-align: bottom;">history</span> Session Restored</h2>
+			</div>
+			<div class="modal-body">
+				<p id="sessionResumeMessage" style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;"></p>
+				<button class="btn" id="sessionResumeContinueBtn">Continue</button>
 			</div>
 		</div>
 	</div>

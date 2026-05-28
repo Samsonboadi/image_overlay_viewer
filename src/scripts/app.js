@@ -37,12 +37,15 @@ export class ModernImageOverlayApp {
         this.autoAdvance = true;
         this.deferredRestore = null;
         this.projectId = null;
+        this.stableProjectId = null;
 
         // Batch loading
         this.maxBatchSize = 1000;
         this.pendingImageFiles = [];
         this.pendingMaskFiles = [];
         this.allDirectoryFiles = [];
+        this.allDirectoryMaskFiles = [];
+        this._deferredMaskFiles = null;
         this.batchOffset = 0;
         this.pendingNewSession = false;
         this.loadedSessionTotal = 0;
@@ -210,7 +213,8 @@ export class ModernImageOverlayApp {
     }
     
     saveToLocalStorage() {
-        if (!this.projectId) return;
+        const key = this.stableProjectId || this.projectId;
+        if (!key) return;
         const payload = {
             sessionId: this.sessionData.sessionId,
             classifications: this.sessionData.classifications,
@@ -220,14 +224,15 @@ export class ModernImageOverlayApp {
             savedAt: new Date().toISOString()
         };
         try {
-            localStorage.setItem(this.projectId, JSON.stringify(payload));
+            localStorage.setItem(key, JSON.stringify(payload));
         } catch (e) {}
     }
-    
+
     tryRestoreFromLocalStorage() {
-        if (!this.projectId) return false;
+        const key = this.stableProjectId || this.projectId;
+        if (!key) return false;
         try {
-            const raw = localStorage.getItem(this.projectId);
+            const raw = localStorage.getItem(key);
             if (!raw) return false;
             const data = JSON.parse(raw);
             this.sessionData.classifications = {
@@ -239,13 +244,21 @@ export class ModernImageOverlayApp {
             }
             if (data.lastViewedFilename) {
                 const idx = this.images.findIndex(im => im.name === data.lastViewedFilename);
-                if (idx >= 0) this.currentIndex = idx;
+                if (idx >= 0) {
+                    const c = this.sessionData.classifications[data.lastViewedFilename];
+                    if (c && c.status !== 'pending') {
+                        const nextPending = this.findNextPendingIndex(idx + 1);
+                        this.currentIndex = nextPending >= 0 ? nextPending : idx;
+                    } else {
+                        this.currentIndex = idx;
+                    }
+                }
             } else if (typeof data.currentIndex === 'number') {
                 this.currentIndex = Math.min(Math.max(0, data.currentIndex), Math.max(0, this.images.length - 1));
             }
             this.updateStats();
             this.updateUI();
-            this.showToast('Session recovered automatically');
+            this.showSessionResumeModal();
             return true;
         } catch (e) {
             return false;
@@ -652,25 +665,64 @@ export class ModernImageOverlayApp {
             this.pendingImageFiles = [];
         }
 
-        // Store all directory files (sorted) and reset batch offset for new directory loads
+        // Store all directory files (sorted), reset batch offset, and compute stable project ID
         if (!isBatchAppend && fromDirectory) {
             this.allDirectoryFiles = [...imageFiles, ...this.pendingImageFiles].sort((a, b) => a.name.localeCompare(b.name));
             this.batchOffset = 0;
+            const allNames = this.allDirectoryFiles.map(f => f.name).sort().join('|');
+            let h = 5381;
+            for (let i = 0; i < allNames.length; i++) { h = ((h << 5) + h) + allNames.charCodeAt(i); h |= 0; }
+            this.stableProjectId = 'geominds_overlay_dir_' + (h >>> 0);
+        } else if (!isBatchAppend) {
+            this.stableProjectId = null;
         }
 
-        // If restoring a session, jump to the batch containing the first pending image
+        // Deferred restore (JSON session loaded first): jump to batch containing lastViewedFilename
         if (!isBatchAppend && fromDirectory && this.deferredRestore && this.maxBatchSize > 0) {
-            const classifications = this.sessionData.classifications;
             const allFiles = this.allDirectoryFiles;
-            const firstPendingIdx = allFiles.findIndex(f => {
-                const c = classifications[f.name];
-                return !c || c.status === 'pending';
-            });
-            const targetIdx = firstPendingIdx >= 0 ? firstPendingIdx : 0;
+            const { lastViewedFilename } = this.deferredRestore;
+            let targetIdx = lastViewedFilename ? allFiles.findIndex(f => f.name === lastViewedFilename) : -1;
+            if (targetIdx === -1) {
+                const classifications = this.sessionData.classifications;
+                const firstPendingIdx = allFiles.findIndex(f => { const c = classifications[f.name]; return !c || c.status === 'pending'; });
+                targetIdx = firstPendingIdx >= 0 ? firstPendingIdx : 0;
+            }
             const batchStart = Math.floor(targetIdx / this.maxBatchSize) * this.maxBatchSize;
             imageFiles = allFiles.slice(batchStart, batchStart + this.maxBatchSize);
             this.pendingImageFiles = allFiles.slice(batchStart + this.maxBatchSize);
             this.batchOffset = batchStart;
+            if (batchStart > 0 && this.allDirectoryMaskFiles.length > 0) {
+                this._deferredMaskFiles = this.allDirectoryMaskFiles.slice(batchStart, batchStart + this.maxBatchSize);
+                this.pendingMaskFiles = this.allDirectoryMaskFiles.slice(batchStart + this.maxBatchSize);
+                this.masks = [];
+                this.masksMap.clear();
+            }
+        }
+
+        // Auto-restore (no JSON): peek at the stable session key to find lastViewedFilename and jump to its batch
+        if (!isBatchAppend && fromDirectory && !this.deferredRestore && this.maxBatchSize > 0 && !this.pendingNewSession && this.stableProjectId) {
+            try {
+                const raw = localStorage.getItem(this.stableProjectId);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    const lastViewed = data.lastViewedFilename;
+                    if (lastViewed) {
+                        const targetFileIdx = this.allDirectoryFiles.findIndex(f => f.name === lastViewed);
+                        if (targetFileIdx >= 0) {
+                            const batchStart = Math.floor(targetFileIdx / this.maxBatchSize) * this.maxBatchSize;
+                            imageFiles = this.allDirectoryFiles.slice(batchStart, batchStart + this.maxBatchSize);
+                            this.pendingImageFiles = this.allDirectoryFiles.slice(batchStart + this.maxBatchSize);
+                            this.batchOffset = batchStart;
+                            if (batchStart > 0 && this.allDirectoryMaskFiles.length > 0) {
+                                this._deferredMaskFiles = this.allDirectoryMaskFiles.slice(batchStart, batchStart + this.maxBatchSize);
+                                this.pendingMaskFiles = this.allDirectoryMaskFiles.slice(batchStart + this.maxBatchSize);
+                                this.masks = [];
+                                this.masksMap.clear();
+                            }
+                        }
+                    }
+                }
+            } catch(e) {}
         }
 
         const totalDropped = imageFiles.length + this.pendingImageFiles.length;
@@ -745,6 +797,7 @@ export class ModernImageOverlayApp {
             this.updateSessionWithImages();
 
             if (this.pendingNewSession) {
+                if (this.stableProjectId) localStorage.removeItem(this.stableProjectId);
                 localStorage.removeItem(this.projectId);
                 this.pendingNewSession = false;
                 this.saveToLocalStorage();
@@ -766,6 +819,7 @@ export class ModernImageOverlayApp {
             this.updateSessionWithImages();
 
             if (this.pendingNewSession) {
+                if (this.stableProjectId) localStorage.removeItem(this.stableProjectId);
                 localStorage.removeItem(this.projectId);
                 this.pendingNewSession = false;
                 this.saveToLocalStorage();
@@ -781,16 +835,32 @@ export class ModernImageOverlayApp {
         this.drawImage();
 
         if (this.deferredRestore) {
+            const { lastViewedFilename } = this.deferredRestore;
             this.deferredRestore = null;
-            const classifications = this.sessionData.classifications;
-            const firstPendingInBatch = this.images.findIndex(im => {
-                const c = classifications[im.name];
-                return !c || c.status === 'pending';
-            });
-            this.currentIndex = firstPendingInBatch >= 0 ? firstPendingInBatch : 0;
+            let targetIdx = -1;
+            if (lastViewedFilename) {
+                const idx = this.images.findIndex(im => im.name === lastViewedFilename);
+                if (idx >= 0) {
+                    const c = this.sessionData.classifications[lastViewedFilename];
+                    targetIdx = (c && c.status !== 'pending') ? this.findNextPendingIndex(idx + 1) : idx;
+                    if (targetIdx === -1) targetIdx = idx;
+                }
+            }
+            if (targetIdx === -1) {
+                targetIdx = this.images.findIndex(im => { const c = this.sessionData.classifications[im.name]; return !c || c.status === 'pending'; });
+                if (targetIdx === -1) targetIdx = 0;
+            }
+            this.currentIndex = targetIdx;
             this.resetView();
             this.drawImage();
             this.updateUI();
+            this.showSessionResumeModal();
+        }
+
+        if (this._deferredMaskFiles) {
+            const batch = this._deferredMaskFiles;
+            this._deferredMaskFiles = null;
+            await this.loadMasks(batch, true);
         }
 
         if (!isBatchAppend && !inBatchMode && this.masks.length === 0) {
@@ -798,7 +868,7 @@ export class ModernImageOverlayApp {
             if (maskFiles) await this.loadMasks(maskFiles);
         }
     }
-    
+
     async loadMasks(files, isBatchAppend = false, fromDirectory = false) {
         let maskFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
         if (!maskFiles.length) return;
@@ -811,12 +881,18 @@ export class ModernImageOverlayApp {
             this.pendingMaskFiles = [];
         }
 
+        // Store all directory mask files for batch-jump corrections
+        if (!isBatchAppend && fromDirectory) {
+            this.allDirectoryMaskFiles = [...maskFiles, ...this.pendingMaskFiles].sort((a, b) => a.name.localeCompare(b.name));
+        }
+
         // If images were session-restored to a non-first batch, jump mask loading to match
         if (!isBatchAppend && fromDirectory && this.batchOffset > 0 && this.maxBatchSize > 0) {
-            const allSortedMasks = [...maskFiles, ...this.pendingMaskFiles].sort((a, b) => a.name.localeCompare(b.name));
-            const jumpStart = Math.min(this.batchOffset, allSortedMasks.length);
-            maskFiles = allSortedMasks.slice(jumpStart, jumpStart + this.maxBatchSize);
-            this.pendingMaskFiles = allSortedMasks.slice(jumpStart + this.maxBatchSize);
+            const allSortedMasks = this.allDirectoryMaskFiles.length > 0
+                ? this.allDirectoryMaskFiles
+                : [...maskFiles, ...this.pendingMaskFiles].sort((a, b) => a.name.localeCompare(b.name));
+            maskFiles = allSortedMasks.slice(this.batchOffset, this.batchOffset + this.maxBatchSize);
+            this.pendingMaskFiles = allSortedMasks.slice(this.batchOffset + this.maxBatchSize);
         }
 
         const totalDropped = maskFiles.length + this.pendingMaskFiles.length;
@@ -958,11 +1034,21 @@ export class ModernImageOverlayApp {
     
     newSession() {
         if (Object.keys(this.sessionData.classifications).length > 0) {
-            if (!confirm('Are you sure you want to start a new session? All current progress will be lost.')) {
-                return;
-            }
+            const modal = document.getElementById('newSessionConfirmModal');
+            modal.classList.add('open');
+            const close = () => { modal.classList.remove('open'); document.removeEventListener('keydown', onKey); };
+            const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+            modal.onclick = (e) => { if (e.target === modal) close(); };
+            document.getElementById('newSessionConfirmCancelBtn').onclick = close;
+            document.getElementById('newSessionConfirmCancelFooterBtn').onclick = close;
+            document.getElementById('newSessionConfirmOkBtn').onclick = () => { close(); this._doNewSession(); };
+            document.addEventListener('keydown', onKey);
+            return;
         }
-        
+        this._doNewSession();
+    }
+
+    _doNewSession() {
         this.sessionData = {
             sessionId: this.generateSessionId(),
             createdAt: new Date().toISOString(),
@@ -985,6 +1071,8 @@ export class ModernImageOverlayApp {
         this.pendingImageFiles = [];
         this.pendingMaskFiles = [];
         this.allDirectoryFiles = [];
+        this.allDirectoryMaskFiles = [];
+        this._deferredMaskFiles = null;
         this.batchOffset = 0;
         this.deferredRestore = null;
         this.pendingNewSession = true;
@@ -992,7 +1080,11 @@ export class ModernImageOverlayApp {
         document.getElementById('imageLoadStatus').textContent = '';
         document.getElementById('maskLoadStatus').textContent = '';
         this.updateSessionWithImages();
-        
+
+        if (this.stableProjectId) {
+            localStorage.removeItem(this.stableProjectId);
+            this.stableProjectId = null;
+        }
         if (this.projectId) {
             localStorage.removeItem(this.projectId);
         }
@@ -1140,16 +1232,28 @@ export class ModernImageOverlayApp {
         this.updateCurrentImageStatus();
         this.updateUI();
         this.persistSettings();
+        this._batchJustCompleted = this._checkBatchComplete();
     }
-    
+
+    _checkBatchComplete() {
+        if (this.pendingImageFiles.length === 0) return false;
+        const allClassified = this.images.every(im => {
+            const c = this.sessionData.classifications[im.name];
+            return c && c.status !== 'pending';
+        });
+        if (allClassified) {
+            this.showNextBatchModal();
+            return true;
+        }
+        return false;
+    }
+
     afterActionAdvance() {
         if (!this.autoAdvance) return;
-
-        if (this.currentIndex >= this.images.length - 1 && this.pendingImageFiles.length > 0) {
-            this.showNextBatchModal();
+        if (this._batchJustCompleted) {
+            this._batchJustCompleted = false;
             return;
         }
-
         if (this.currentIndex < this.images.length - 1) {
             this.currentIndex++;
         }
@@ -1615,14 +1719,18 @@ export class ModernImageOverlayApp {
     
     jumpToNextPending() {
         const idx = this.findNextPendingIndex(this.currentIndex + 1);
-        if (idx === -1) {
-            this.showToast('No pending images left');
+        if (idx !== -1) {
+            this.currentIndex = idx;
+            this.resetView();
+            this.drawImage();
+            this.updateUI();
             return;
         }
-        this.currentIndex = idx;
-        this.resetView();
-        this.drawImage();
-        this.updateUI();
+        if (this.pendingImageFiles.length > 0) {
+            this.showNextBatchModal(true);
+            return;
+        }
+        this.showToast('No pending images left');
     }
     
     resetView() {
@@ -2003,7 +2111,7 @@ This archive contains the sorted results of your Geominds image analysis session
         if (nextBtn) nextBtn.disabled = !hasImages || !canGoNext;
         document.getElementById('navPrevBtn').disabled = !hasImages || !canGoPrev;
         document.getElementById('navNextBtn').disabled = !hasImages || !canGoNext;
-        document.getElementById('nextPendingBtn').disabled = this.findNextPendingIndex(0) === -1;
+        document.getElementById('nextPendingBtn').disabled = this.findNextPendingIndex(0) === -1 && this.pendingImageFiles.length === 0;
         
         // Update action buttons
         document.getElementById('exportBtn').disabled = !hasImages;
@@ -2012,7 +2120,7 @@ This archive contains the sorted results of your Geominds image analysis session
         document.getElementById('downloadProjectBtn').disabled = !hasImages;
         
         // Update statistics — denominator is images loaded so far; grows with appended batches; respects explicit session total
-        const accumulatedTotal = Math.max(this.images.length, this.loadedSessionTotal);
+        const accumulatedTotal = Math.max(this.batchOffset + this.images.length, this.loadedSessionTotal);
         document.getElementById('currentIndex').textContent = hasImages ? this.batchOffset + this.currentIndex + 1 : 0;
         document.getElementById('totalImages').textContent = accumulatedTotal;
         document.getElementById('approvedCount').textContent = this.stats.approved;
@@ -2024,7 +2132,7 @@ This archive contains the sorted results of your Geominds image analysis session
         const imageInfo = document.getElementById('imageInfo');
         if (hasImages) {
             const currentImage = this.images[this.currentIndex];
-            const accumulatedCount = Math.max(this.images.length, this.loadedSessionTotal);
+            const accumulatedCount = Math.max(this.batchOffset + this.images.length, this.loadedSessionTotal);
             const globalIndex = this.batchOffset + this.currentIndex + 1;
             imageInfo.textContent = `${currentImage.name} (${globalIndex}/${accumulatedCount})`;
         } else {
@@ -2188,7 +2296,52 @@ This archive contains the sorted results of your Geominds image analysis session
         } catch (e) {}
     }
 
-    showNextBatchModal() {
+    showSessionResumeModal() {
+        const globalIdx = this.batchOffset + this.currentIndex + 1;
+        const filename = this.images[this.currentIndex] ? this.images[this.currentIndex].name : '';
+        const batchNum = (this.maxBatchSize > 0 && this.batchOffset > 0)
+            ? Math.floor(this.batchOffset / this.maxBatchSize) + 1
+            : null;
+
+        const modal = document.getElementById('sessionResumeModal');
+        const msgEl = document.getElementById('sessionResumeMessage');
+        msgEl.innerHTML = '';
+
+        const line1 = document.createElement('span');
+        line1.style.cssText = 'display:block;';
+        line1.textContent = `Continuing from image ${globalIdx}${batchNum ? ` (batch ${batchNum})` : ''}`;
+        msgEl.appendChild(line1);
+
+        if (filename) {
+            const file = document.createElement('span');
+            file.style.cssText = 'display:block;margin-top:6px;color:var(--text-dim);font-size:0.8rem;word-break:break-all;';
+            file.textContent = filename;
+            msgEl.appendChild(file);
+        }
+
+        const needsMasks = this.images.length > 0 && this.masks.length === 0;
+        const needsImages = this.masks.length > 0 && this.images.length === 0;
+        if (needsMasks || needsImages) {
+            const reminder = document.createElement('span');
+            reminder.style.cssText = 'display:block;margin-top:10px;color:#f59e0b;font-size:0.85rem;';
+            reminder.textContent = `Please load the corresponding ${needsMasks ? 'masks' : 'images'}.`;
+            msgEl.appendChild(reminder);
+        }
+        modal.classList.add('open');
+
+        const close = () => {
+            modal.classList.remove('open');
+            document.removeEventListener('keydown', onKey);
+        };
+        const onKey = (e) => {
+            if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+        document.getElementById('sessionResumeContinueBtn').onclick = close;
+        document.addEventListener('keydown', onKey);
+    }
+
+    showNextBatchModal(jumpToPendingAfterLoad = false) {
         const batchSize = this.maxBatchSize || Infinity;
         const nextImages = Math.min(batchSize, this.pendingImageFiles.length);
         const nextMasks = Math.min(batchSize, this.pendingMaskFiles.length);
@@ -2211,6 +2364,10 @@ This archive contains the sorted results of your Geominds image analysis session
             warn.textContent = `⚠️ ${pendingInBatch} image${pendingInBatch !== 1 ? 's' : ''} in this batch ${pendingInBatch !== 1 ? 'are' : 'is'} still pending.`;
             msgEl.appendChild(warn);
         }
+
+        const firstPendingBtn = document.getElementById('nextBatchFirstPendingBtn');
+        firstPendingBtn.style.display = pendingInBatch > 0 ? '' : 'none';
+
         modal.classList.add('open');
 
         const close = () => {
@@ -2220,17 +2377,37 @@ This archive contains the sorted results of your Geominds image analysis session
 
         const load = async () => {
             close();
-            const prevLength = this.images.length;
-            const imageBatch = this.pendingImageFiles.splice(0, this.maxBatchSize || this.pendingImageFiles.length);
-            const maskBatch = this.pendingMaskFiles.splice(0, this.maxBatchSize || this.pendingMaskFiles.length);
-            await this.loadImages(imageBatch, true);
-            if (maskBatch.length > 0) await this.loadMasks(maskBatch, true);
-            if (this.images.length > prevLength) {
-                this.currentIndex = prevLength;
-                this.resetView();
-                this.drawImage();
-                this.updateUI();
+            if (!jumpToPendingAfterLoad) {
+                const prevLength = this.images.length;
+                const imageBatch = this.pendingImageFiles.splice(0, this.maxBatchSize || this.pendingImageFiles.length);
+                const maskBatch = this.pendingMaskFiles.splice(0, this.maxBatchSize || this.pendingMaskFiles.length);
+                await this.loadImages(imageBatch, true);
+                if (maskBatch.length > 0) await this.loadMasks(maskBatch, true);
+                if (this.images.length > prevLength) {
+                    this.currentIndex = prevLength;
+                    this.resetView();
+                    this.drawImage();
+                    this.updateUI();
+                }
+                return;
             }
+            // jumpToPendingAfterLoad: keep loading batches until a pending image is found
+            while (this.pendingImageFiles.length > 0) {
+                const prevLength = this.images.length;
+                const imageBatch = this.pendingImageFiles.splice(0, this.maxBatchSize || this.pendingImageFiles.length);
+                const maskBatch = this.pendingMaskFiles.splice(0, this.maxBatchSize || this.pendingMaskFiles.length);
+                await this.loadImages(imageBatch, true);
+                if (maskBatch.length > 0) await this.loadMasks(maskBatch, true);
+                const targetIdx = this.findNextPendingIndex(prevLength);
+                if (targetIdx >= 0) {
+                    this.currentIndex = targetIdx;
+                    this.resetView();
+                    this.drawImage();
+                    this.updateUI();
+                    return;
+                }
+            }
+            this.showToast('No pending images left');
         };
 
         const onKey = (e) => {
@@ -2242,6 +2419,16 @@ This archive contains the sorted results of your Geominds image analysis session
         document.getElementById('nextBatchModalCloseBtn').onclick = close;
         document.getElementById('nextBatchCancelBtn').onclick = close;
         document.getElementById('nextBatchLoadBtn').onclick = load;
+        firstPendingBtn.onclick = () => {
+            close();
+            const idx = this.findNextPendingIndex(0);
+            if (idx !== -1) {
+                this.currentIndex = idx;
+                this.resetView();
+                this.drawImage();
+                this.updateUI();
+            }
+        };
         document.addEventListener('keydown', onKey);
     }
 
