@@ -76,16 +76,16 @@
 <body>
 <div class="container">
   <div class="header">
-    <h1>🔬 Modern Image Overlay Viewer</h1>
+    <h1><span class="material-symbols-outlined" style="font-size: 2rem;">biotech</span> Modern Image Overlay Viewer</h1>
     <p>Advanced image analysis tool for GeoAI research</p>
   </div>
 
   <div class="main-content">
     <div class="control-panel">
       <div class="control-group">
-        <h3>📁 Load Data</h3>
+        <h3><span class="material-symbols-outlined">folder_open</span> Load Data</h3>
         <div class="file-drop-zone" id="imageDropZone">
-          <p>📸 Drop images here or click to browse</p>
+          <p><span class="material-symbols-outlined" style="font-size: 24px; margin-bottom: 4px;">image</span> Drop images here or click to browse</p>
           <input type="file" id="imageInput" class="file-input" multiple accept="image/*">
         </div>
         <div class="progress-bar" id="imageLoadProgress" style="display:none;">
@@ -94,7 +94,7 @@
         <div id="imageLoadStatus" style="font-size:12px;color:#bdc3c7;margin-top:5px;"></div>
 
         <div class="file-drop-zone" id="maskDropZone">
-          <p>🎭 Drop masks here or click to browse</p>
+          <p><span class="material-symbols-outlined" style="font-size: 24px; margin-bottom: 4px;">layers</span> Drop masks here or click to browse</p>
           <input type="file" id="maskInput" class="file-input" multiple accept="image/*">
         </div>
         <div class="progress-bar" id="maskLoadProgress" style="display:none;">
@@ -104,40 +104,40 @@
       </div>
 
       <div class="control-group">
-        <h3>💾 Session Management</h3>
+        <h3><span class="material-symbols-outlined">save</span> Session Management</h3>
         <div class="session-controls">
-          <button class="btn btn-success btn-small" id="saveSessionBtn">💾 Save</button>
-          <button class="btn btn-secondary btn-small" id="loadSessionBtn">📂 Load</button>
-          <button class="btn btn-warning btn-small" id="newSessionBtn">🔄 New</button>
+          <button class="btn btn-success btn-small" id="saveSessionBtn"><span class="material-symbols-outlined">save</span> Save</button>
+          <button class="btn btn-secondary btn-small" id="loadSessionBtn"><span class="material-symbols-outlined">folder_open</span> Load</button>
+          <button class="btn btn-warning btn-small" id="newSessionBtn"><span class="material-symbols-outlined">restart_alt</span> New</button>
         </div>
         <input type="file" id="sessionInput" class="file-input" accept=".json">
         <div id="sessionStatus" style="font-size:12px;color:#bdc3c7;margin-top:5px;"></div>
       </div>
 
       <div class="control-group">
-        <h3>📋 Current Image Status</h3>
+        <h3><span class="material-symbols-outlined">assignment</span> Current Image Status</h3>
         <div class="current-status" id="currentImageStatus">
           <div id="statusDisplay">No image selected</div>
           <div id="statusActions" style="margin-top:10px;display:none;">
             <div class="dual-btn">
-              <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
-              <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
+              <button class="btn btn-small btn-success" id="approveBtn"><span class="material-symbols-outlined">check_circle</span> Approve</button>
+              <button class="btn btn-small btn-danger" id="rejectBtn"><span class="material-symbols-outlined">cancel</span> Reject</button>
             </div>
             <div class="dual-btn">
-              <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
-              <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
+              <button class="btn btn-small btn-warning" id="skipCurrentBtn"><span class="material-symbols-outlined">skip_next</span> Skip</button>
+              <button class="btn btn-small btn-secondary" id="clearStatusBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
             </div>
             <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;">
               <input type="checkbox" id="autoAdvanceCheckbox" checked>
               Auto-advance after action
             </label>
-            <button class="btn btn-secondary btn-small" id="nextPendingBtn" style="margin-top:6px;">⤵️ Jump to Next Pending</button>
+            <button class="btn btn-secondary btn-small" id="nextPendingBtn" style="margin-top:6px;"><span class="material-symbols-outlined">shortcut</span> Jump to Next Pending</button>
           </div>
         </div>
       </div>
 
       <div class="control-group">
-        <h3>🎛️ Overlay Controls</h3>
+        <h3><span class="material-symbols-outlined">tune</span> Overlay Controls</h3>
         <div class="slider-container">
           <label for="transparencySlider">Transparency: <span id="transparencyValue">50%</span></label>
           <input type="range" id="transparencySlider" class="slider" min="0" max="100" value="50">
@@ -163,7 +163,7 @@
       </div>
 
       <div class="control-group">
-        <h3>🎲 Random Subset</h3>
+        <h3><span class="material-symbols-outlined">casino</span> Random Subset</h3>
         <div class="slider-container">
           <label for="percentageSlider">Percentage: <span id="percentageValue">20%</span></label>
           <input type="range" id="percentageSlider" class="slider" min="1" max="100" value="20">
@@ -175,7 +175,7 @@
       </div>
 
       <div class="control-group">
-        <h3>📊 Statistics</h3>
+        <h3><span class="material-symbols-outlined">bar_chart</span> Statistics</h3>
         <div class="stats-display" id="statsDisplay">
           <div class="stats-item">Current: <span class="stats-number" id="currentIndex">0</span>/<span class="stats-number" id="totalImages">0</span></div>
           <div class="stats-item">Approved: <span class="stats-number" id="approvedCount">0</span></div>
@@ -186,16 +186,16 @@
       </div>
 
       <div class="control-group">
-        <h3>🎮 Navigation / Export</h3>
-        <button class="btn btn-success" id="prevBtn" disabled>⬅️ Previous</button>
-        <button class="btn btn-success" id="nextBtn" disabled>➡️ Next</button>
-        <button class="btn btn-secondary" id="exportBtn" disabled>💾 Export View</button>
-        <button class="btn btn-secondary" id="exportResultsBtn" disabled>📊 Export Results</button>
+        <h3><span class="material-symbols-outlined">explore</span> Navigation / Export</h3>
+        <button class="btn btn-success" id="prevBtn" disabled><span class="material-symbols-outlined">arrow_back</span> Previous</button>
+        <button class="btn btn-success" id="nextBtn" disabled><span class="material-symbols-outlined">arrow_forward</span> Next</button>
+        <button class="btn btn-secondary" id="exportBtn" disabled><span class="material-symbols-outlined">save</span> Export View</button>
+        <button class="btn btn-secondary" id="exportResultsBtn" disabled><span class="material-symbols-outlined">bar_chart</span> Export Results</button>
       </div>
 
       <div class="control-group">
-        <h3>📦 Download Complete Project</h3>
-        <button class="btn btn-warning" id="downloadProjectBtn" disabled>📥 Download Sorted Project</button>
+        <h3><span class="material-symbols-outlined">download</span> Download Complete Project</h3>
+        <button class="btn btn-warning" id="downloadProjectBtn" disabled><span class="material-symbols-outlined">download</span> Download Sorted Project</button>
         <div class="progress-bar" id="downloadProgress" style="display:none;">
           <div class="progress-fill" id="downloadProgressFill"></div>
         </div>
@@ -209,7 +209,7 @@
       </div>
 
       <div class="control-group">
-        <h3>⌨️ Shortcuts</h3>
+        <h3><span class="material-symbols-outlined">keyboard</span> Shortcuts</h3>
         <div class="keyboard-shortcuts">
           <div class="shortcut-item"><span>Previous</span><span class="shortcut-key">←</span></div>
           <div class="shortcut-item"><span>Next</span><span class="shortcut-key">→</span></div>
@@ -226,9 +226,9 @@
         <canvas id="imageCanvas" class="image-display"></canvas>
       </div>
       <div class="navigation-bar">
-        <button class="nav-btn" id="navPrevBtn" disabled>⬅️ Previous</button>
+        <button class="nav-btn" id="navPrevBtn" disabled><span class="material-symbols-outlined">arrow_back</span> Previous</button>
         <div><span id="imageInfo">Select images to start</span></div>
-        <button class="nav-btn" id="navNextBtn" disabled>➡️ Next</button>
+        <button class="nav-btn" id="navNextBtn" disabled><span class="material-symbols-outlined">arrow_forward</span> Next</button>
       </div>
     </div>
   </div>

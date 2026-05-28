@@ -14,7 +14,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 	
 	<!-- Toast notification -->
 	<div class="toast" id="toast">
-		<span class="toast-icon">✨</span>
+		<span class="toast-icon"><span class="material-symbols-outlined" style="color: #6366f1;">auto_awesome</span></span>
 		<span id="toastText">System Ready</span>
 	</div>
 
@@ -22,13 +22,13 @@ import ImagePanel from '../components/ImagePanel.astro';
 	<div class="modal-backdrop" id="optionsModal">
 		<div class="modal-content glass-panel" style="max-width: 500px; max-height: 85vh; overflow-y: auto;">
 			<div class="modal-header">
-				<h2>⚙️ Advanced Options & Settings</h2>
+				<h2><span class="material-symbols-outlined" style="font-size: 1.6rem; vertical-align: bottom;">settings</span> Advanced Options & Settings</h2>
 				<button class="modal-close-btn" id="optionsModalCloseBtn">&times;</button>
 			</div>
 			<div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
 				<!-- Navigation Behaviour -->
 				<div class="control-group">
-					<h3>🧭 Navigation</h3>
+					<h3><span class="material-symbols-outlined">explore</span> Navigation</h3>
 					<label class="checkbox-container">
 						<input type="checkbox" id="autoAdvanceCheckbox" checked>
 						<span class="checkbox-checkmark"></span>
@@ -43,11 +43,11 @@ import ImagePanel from '../components/ImagePanel.astro';
 
 				<!-- Session Management -->
 				<div class="control-group">
-					<h3>💾 Session Management</h3>
+					<h3><span class="material-symbols-outlined">save</span> Session Management</h3>
 					<div class="session-controls">
-						<button class="btn btn-success btn-small" id="saveSessionBtn">💾 Save</button>
-						<button class="btn btn-secondary btn-small" id="loadSessionBtn">📂 Load</button>
-						<button class="btn btn-warning btn-small" id="newSessionBtn">🔄 New</button>
+						<button class="btn btn-success btn-small" id="saveSessionBtn"><span class="material-symbols-outlined">save</span> Save</button>
+						<button class="btn btn-secondary btn-small" id="loadSessionBtn"><span class="material-symbols-outlined">folder_open</span> Load</button>
+						<button class="btn btn-warning btn-small" id="newSessionBtn"><span class="material-symbols-outlined">restart_alt</span> New</button>
 					</div>
 					<input type="file" id="sessionInput" class="file-input" accept=".json">
 					<div id="sessionStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
@@ -55,7 +55,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 
 				<!-- Mask Classes Configuration -->
 				<div class="control-group">
-					<h3>🎨 Mask Classes</h3>
+					<h3><span class="material-symbols-outlined">palette</span> Mask Classes</h3>
 					<div class="class-count-input">
 						<label for="numClassesInput">Number of classes:</label>
 						<input type="number" id="numClassesInput" min="1" max="50" value="2">
@@ -86,7 +86,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 
 				<!-- Random Subset -->
 				<div class="control-group">
-					<h3>🎲 Random Subset</h3>
+					<h3><span class="material-symbols-outlined">casino</span> Random Subset</h3>
 					<div class="slider-container">
 						<label for="percentageSlider">Percentage: <span id="percentageValue">20%</span></label>
 						<input type="range" id="percentageSlider" class="slider" min="1" max="100" value="20">
@@ -99,8 +99,8 @@ import ImagePanel from '../components/ImagePanel.astro';
 
 				<!-- Download Complete Project -->
 				<div class="control-group">
-					<h3>📥 Download Complete Project</h3>
-					<button class="btn btn-warning" id="downloadProjectBtn" disabled>📥 Download Sorted Project</button>
+					<h3><span class="material-symbols-outlined">download</span> Download Complete Project</h3>
+					<button class="btn btn-warning" id="downloadProjectBtn" disabled><span class="material-symbols-outlined">download</span> Download Sorted Project</button>
 					<div class="progress-bar" id="downloadProgress" style="display: none;">
 						<div class="progress-fill" id="downloadProgressFill"></div>
 					</div>
@@ -128,7 +128,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 	<div class="modal-backdrop" id="helpModal">
 		<div class="modal-content glass-panel">
 			<div class="modal-header">
-				<h2>⌨️ Keyboard Shortcuts & Help</h2>
+				<h2><span class="material-symbols-outlined" style="font-size: 1.6rem; vertical-align: bottom;">keyboard</span> Keyboard Shortcuts & Help</h2>
 				<button class="modal-close-btn" id="helpModalCloseBtn">&times;</button>
 			</div>
 			<div class="modal-body">
@@ -174,7 +174,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 	<div class="modal-backdrop" id="imageUploadModal">
 		<div class="modal-content glass-panel" style="max-width: 460px;">
 			<div class="modal-header">
-				<h2>📸 Upload Images</h2>
+				<h2><span class="material-symbols-outlined" style="font-size: 1.6rem; vertical-align: bottom;">photo_camera</span> Upload Images</h2>
 				<button class="modal-close-btn" id="imageUploadSkipBtn">&times;</button>
 			</div>
 			<div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
@@ -182,7 +182,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 					Upload the corresponding image files for your masks.
 				</p>
 				<div class="file-drop-zone" id="imageUploadDropZone">
-					<p>📸 Drop images here or click to browse</p>
+					<p><span class="material-symbols-outlined" style="font-size: 24px; margin-bottom: 4px;">photo_camera</span> Drop images here or click to browse</p>
 					<input type="file" id="imageUploadInput" class="file-input" multiple accept="image/*">
 				</div>
 				<div class="progress-bar" id="imageUploadProgress" style="display: none;">
@@ -193,8 +193,8 @@ import ImagePanel from '../components/ImagePanel.astro';
 					<div id="imageUploadUnmatched" style="margin-top: 8px; color: var(--text-dim);"></div>
 				</div>
 				<div style="display: flex; gap: 8px; margin-top: 4px;">
-					<button class="btn btn-secondary" id="imageUploadSkipFooterBtn">⏭️ Skip</button>
-					<button class="btn" id="imageUploadConfirmBtn" style="display: none;">✅ Use These Images</button>
+					<button class="btn btn-secondary" id="imageUploadSkipFooterBtn"><span class="material-symbols-outlined">skip_next</span> Skip</button>
+					<button class="btn" id="imageUploadConfirmBtn" style="display: none;"><span class="material-symbols-outlined">check_circle</span> Use These Images</button>
 				</div>
 			</div>
 		</div>
@@ -204,7 +204,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 	<div class="modal-backdrop" id="maskUploadModal">
 		<div class="modal-content glass-panel" style="max-width: 460px;">
 			<div class="modal-header">
-				<h2>🎭 Upload Masks</h2>
+				<h2><span class="material-symbols-outlined" style="font-size: 1.6rem; vertical-align: bottom;">layers</span> Upload Masks</h2>
 				<button class="modal-close-btn" id="maskUploadSkipBtn">&times;</button>
 			</div>
 			<div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
@@ -212,7 +212,7 @@ import ImagePanel from '../components/ImagePanel.astro';
 					Upload the corresponding mask files for your images.
 				</p>
 				<div class="file-drop-zone" id="maskUploadDropZone">
-					<p>🎭 Drop masks here or click to browse</p>
+					<p><span class="material-symbols-outlined" style="font-size: 24px; margin-bottom: 4px;">layers</span> Drop masks here or click to browse</p>
 					<input type="file" id="maskUploadInput" class="file-input" multiple accept="image/*">
 				</div>
 				<div class="progress-bar" id="maskUploadProgress" style="display: none;">
@@ -223,8 +223,8 @@ import ImagePanel from '../components/ImagePanel.astro';
 					<div id="maskUploadUnmatched" style="margin-top: 8px; color: var(--text-dim);"></div>
 				</div>
 				<div style="display: flex; gap: 8px; margin-top: 4px;">
-					<button class="btn btn-secondary" id="maskUploadSkipFooterBtn">⏭️ Skip</button>
-					<button class="btn" id="maskUploadConfirmBtn" style="display: none;">✅ Use These Masks</button>
+					<button class="btn btn-secondary" id="maskUploadSkipFooterBtn"><span class="material-symbols-outlined">skip_next</span> Skip</button>
+					<button class="btn" id="maskUploadConfirmBtn" style="display: none;"><span class="material-symbols-outlined">check_circle</span> Use These Masks</button>
 				</div>
 			</div>
 		</div>
@@ -257,8 +257,8 @@ import ImagePanel from '../components/ImagePanel.astro';
 			<div class="modal-body">
 				<p id="loadConfirmMessage" style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;"></p>
 				<div style="display: flex; gap: 8px;">
-					<button class="btn btn-secondary" id="loadConfirmAppendBtn">➕ Append</button>
-					<button class="btn btn-danger" id="loadConfirmReplaceBtn">🔄 Replace</button>
+					<button class="btn btn-secondary" id="loadConfirmAppendBtn"><span class="material-symbols-outlined">add</span> Append</button>
+					<button class="btn btn-danger" id="loadConfirmReplaceBtn"><span class="material-symbols-outlined">cached</span> Replace</button>
 				</div>
 			</div>
 		</div>

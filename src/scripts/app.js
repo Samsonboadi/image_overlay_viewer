@@ -658,17 +658,19 @@ export class ModernImageOverlayApp {
             this.batchOffset = 0;
         }
 
-        // If restoring a session, jump directly to the batch containing the target image
-        if (!isBatchAppend && fromDirectory && this.deferredRestore?.lastViewedFilename && this.maxBatchSize > 0) {
-            const target = this.deferredRestore.lastViewedFilename;
+        // If restoring a session, jump to the batch containing the first pending image
+        if (!isBatchAppend && fromDirectory && this.deferredRestore && this.maxBatchSize > 0) {
+            const classifications = this.sessionData.classifications;
             const allFiles = this.allDirectoryFiles;
-            const targetIdx = allFiles.findIndex(f => f.name === target);
-            if (targetIdx >= 0) {
-                const batchStart = Math.floor(targetIdx / this.maxBatchSize) * this.maxBatchSize;
-                imageFiles = allFiles.slice(batchStart, batchStart + this.maxBatchSize);
-                this.pendingImageFiles = allFiles.slice(batchStart + this.maxBatchSize);
-                this.batchOffset = batchStart;
-            }
+            const firstPendingIdx = allFiles.findIndex(f => {
+                const c = classifications[f.name];
+                return !c || c.status === 'pending';
+            });
+            const targetIdx = firstPendingIdx >= 0 ? firstPendingIdx : 0;
+            const batchStart = Math.floor(targetIdx / this.maxBatchSize) * this.maxBatchSize;
+            imageFiles = allFiles.slice(batchStart, batchStart + this.maxBatchSize);
+            this.pendingImageFiles = allFiles.slice(batchStart + this.maxBatchSize);
+            this.batchOffset = batchStart;
         }
 
         const totalDropped = imageFiles.length + this.pendingImageFiles.length;
@@ -779,12 +781,13 @@ export class ModernImageOverlayApp {
         this.drawImage();
 
         if (this.deferredRestore) {
-            const target = this.deferredRestore.lastViewedFilename;
-            const idx = target ? this.images.findIndex(im => im.name === target) : -1;
-            this.currentIndex = idx >= 0
-                ? idx
-                : Math.min(Math.max(0, this.deferredRestore.currentIndex), Math.max(0, this.images.length - 1));
             this.deferredRestore = null;
+            const classifications = this.sessionData.classifications;
+            const firstPendingInBatch = this.images.findIndex(im => {
+                const c = classifications[im.name];
+                return !c || c.status === 'pending';
+            });
+            this.currentIndex = firstPendingInBatch >= 0 ? firstPendingInBatch : 0;
             this.resetView();
             this.drawImage();
             this.updateUI();
@@ -2190,12 +2193,24 @@ This archive contains the sorted results of your Geominds image analysis session
         const nextImages = Math.min(batchSize, this.pendingImageFiles.length);
         const nextMasks = Math.min(batchSize, this.pendingMaskFiles.length);
 
+        const pendingInBatch = this.images.filter(im => {
+            const c = this.sessionData.classifications[im.name];
+            return !c || c.status === 'pending';
+        }).length;
+
         let msg = `You've reached the end of this batch. Load the next ${nextImages} image${nextImages !== 1 ? 's' : ''}`;
         if (nextMasks > 0) msg += ` and ${nextMasks} mask${nextMasks !== 1 ? 's' : ''}`;
         msg += `? (${this.pendingImageFiles.length} image${this.pendingImageFiles.length !== 1 ? 's' : ''} remaining)`;
 
         const modal = document.getElementById('nextBatchModal');
-        document.getElementById('nextBatchMessage').textContent = msg;
+        const msgEl = document.getElementById('nextBatchMessage');
+        msgEl.textContent = msg;
+        if (pendingInBatch > 0) {
+            const warn = document.createElement('span');
+            warn.style.cssText = 'display:block;margin-top:10px;color:#f59e0b;';
+            warn.textContent = `⚠️ ${pendingInBatch} image${pendingInBatch !== 1 ? 's' : ''} in this batch ${pendingInBatch !== 1 ? 'are' : 'is'} still pending.`;
+            msgEl.appendChild(warn);
+        }
         modal.classList.add('open');
 
         const close = () => {

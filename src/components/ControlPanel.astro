@@ -5,17 +5,17 @@
 <aside class="control-panel glass-panel">
   <!-- Toolbar: Options & Help -->
   <div class="panel-toolbar">
-    <button class="btn btn-secondary" id="optionsToggleBtn">⚙️ Options</button>
-    <button class="btn btn-secondary" id="helpToggleBtn">❓ Help</button>
+    <button class="btn btn-secondary" id="optionsToggleBtn"><span class="material-symbols-outlined">settings</span> Options</button>
+    <button class="btn btn-secondary" id="helpToggleBtn"><span class="material-symbols-outlined">help</span> Help</button>
   </div>
 
   <!-- Load Data -->
   <div class="control-group">
-    <h3>📁 Load Data</h3>
+    <h3><span class="material-symbols-outlined">folder_open</span> Load Data</h3>
     
     <!-- Azure Cloud Storage API Client Toggle -->
     <div class="azure-toggle-header" id="azureToggleHeader">
-      <span>🌐 Azure Cloud Connection</span>
+      <span><span class="material-symbols-outlined">cloud</span> Azure Cloud Connection</span>
       <span class="toggle-icon">▶</span>
     </div>
     
@@ -34,12 +34,12 @@
           <input type="number" id="azureOffset" min="0" value="0" />
         </div>
       </div>
-      <button class="btn btn-secondary btn-small" id="azureLoadBtn" style="margin-top: 4px;">🌐 Load Cloud Dataset</button>
+      <button class="btn btn-secondary btn-small" id="azureLoadBtn" style="margin-top: 4px;"><span class="material-symbols-outlined">cloud_download</span> Load Cloud Dataset</button>
       <div id="azureStatus" class="azure-status-text">Connect to image inventory client</div>
     </div>
 
     <div class="file-drop-zone" id="imageDropZone">
-      <p>📸 Drop images here or click to choose a folder</p>
+      <p><span class="material-symbols-outlined" style="font-size: 24px; margin-bottom: 4px;">image</span> Drop images here or click to choose a folder</p>
       <input type="file" id="imageInput" class="file-input" accept="image/*" webkitdirectory>
     </div>
     <div class="progress-bar" id="imageLoadProgress" style="display: none;">
@@ -48,7 +48,7 @@
     <div id="imageLoadStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
     
     <div class="file-drop-zone" id="maskDropZone" style="margin-top: 14px;">
-      <p>🎭 Drop masks here or click to choose a folder</p>
+      <p><span class="material-symbols-outlined" style="font-size: 24px; margin-bottom: 4px;">layers</span> Drop masks here or click to choose a folder</p>
       <input type="file" id="maskInput" class="file-input" accept="image/*" webkitdirectory>
     </div>
     <div class="progress-bar" id="maskLoadProgress" style="display: none;">
@@ -59,19 +59,19 @@
 
   <!-- Current Image Status -->
   <div class="control-group">
-    <h3>📋 Current Image Status <span id="statusPill"></span></h3>
+    <h3><span class="material-symbols-outlined">assignment</span> Current Image Status <span id="statusPill"></span></h3>
     <div id="statusDisplay" style="display: none;"></div>
     <div id="statusActions" class="status-actions-grid" style="display: none;">
-      <button class="btn btn-small btn-success" id="approveBtn">✅ Approve</button>
-      <button class="btn btn-small btn-danger" id="rejectBtn">❌ Reject</button>
-      <button class="btn btn-small btn-warning" id="skipCurrentBtn">⏭️ Skip</button>
-      <button class="btn btn-small btn-secondary" id="clearStatusBtn">🔄 Clear</button>
+      <button class="btn btn-small btn-success" id="approveBtn"><span class="material-symbols-outlined">check_circle</span> Approve</button>
+      <button class="btn btn-small btn-danger" id="rejectBtn"><span class="material-symbols-outlined">cancel</span> Reject</button>
+      <button class="btn btn-small btn-warning" id="skipCurrentBtn"><span class="material-symbols-outlined">skip_next</span> Skip</button>
+      <button class="btn btn-small btn-secondary" id="clearStatusBtn"><span class="material-symbols-outlined">restart_alt</span> Clear</button>
     </div>
   </div>
 
   <!-- Overlay Controls -->
   <div class="control-group">
-    <h3>🎛️ Overlay Controls</h3>
+    <h3><span class="material-symbols-outlined">tune</span> Overlay Controls</h3>
     
     <div class="slider-container">
       <label for="transparencySlider">Transparency: <span id="transparencyValue">50%</span></label>
