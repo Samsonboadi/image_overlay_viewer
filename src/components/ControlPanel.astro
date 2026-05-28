@@ -39,8 +39,8 @@
     </div>
 
     <div class="file-drop-zone" id="imageDropZone">
-      <p>📸 Drop images here or click to browse</p>
-      <input type="file" id="imageInput" class="file-input" multiple accept="image/*">
+      <p>📸 Drop images here or click to choose a folder</p>
+      <input type="file" id="imageInput" class="file-input" accept="image/*" webkitdirectory>
     </div>
     <div class="progress-bar" id="imageLoadProgress" style="display: none;">
       <div class="progress-fill" id="imageProgressFill"></div>
@@ -48,8 +48,8 @@
     <div id="imageLoadStatus" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 5px;"></div>
     
     <div class="file-drop-zone" id="maskDropZone" style="margin-top: 14px;">
-      <p>🎭 Drop masks here or click to browse</p>
-      <input type="file" id="maskInput" class="file-input" multiple accept="image/*">
+      <p>🎭 Drop masks here or click to choose a folder</p>
+      <input type="file" id="maskInput" class="file-input" accept="image/*" webkitdirectory>
     </div>
     <div class="progress-bar" id="maskLoadProgress" style="display: none;">
       <div class="progress-fill" id="maskProgressFill"></div>

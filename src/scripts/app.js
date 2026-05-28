@@ -37,6 +37,15 @@ export class ModernImageOverlayApp {
         this.autoAdvance = true;
         this.deferredRestore = null;
         this.projectId = null;
+
+        // Batch loading
+        this.maxBatchSize = 1000;
+        this.pendingImageFiles = [];
+        this.pendingMaskFiles = [];
+        this.allDirectoryFiles = [];
+        this.batchOffset = 0;
+        this.pendingNewSession = false;
+        this.loadedSessionTotal = 0;
         
         // Session data
         this.sessionData = {
@@ -56,12 +65,13 @@ export class ModernImageOverlayApp {
         
         this.canvas = document.getElementById('imageCanvas');
         this.ctx = this.canvas.getContext('2d');
-        
+
         this.setupEventListeners();
         this.setupTouchEvents();
         this.renderClassList();
         this.updateUI();
         this.updateSessionStatus();
+        this.loadUserPrefs();
     }
     
     generateSessionId() {
@@ -269,6 +279,11 @@ export class ModernImageOverlayApp {
             const advCheck = document.getElementById('autoAdvanceCheckbox');
             if (advCheck) advCheck.checked = this.autoAdvance;
         }
+        if (typeof s.maxBatchSize === 'number') {
+            this.maxBatchSize = s.maxBatchSize;
+            const batchInput = document.getElementById('maxBatchSizeInput');
+            if (batchInput) batchInput.value = this.maxBatchSize;
+        }
     }
     
     setupEventListeners() {
@@ -284,12 +299,14 @@ export class ModernImageOverlayApp {
         if (optionsCloseBtn && optionsModal) {
             optionsCloseBtn.addEventListener('click', () => {
                 optionsModal.classList.remove('open');
+                this.persistSettings();
             });
         }
         if (optionsModal) {
             optionsModal.addEventListener('click', (e) => {
                 if (e.target === optionsModal) {
                     optionsModal.classList.remove('open');
+                    this.persistSettings();
                 }
             });
         }
@@ -327,13 +344,15 @@ export class ModernImageOverlayApp {
             });
         }
 
-        // Local File inputs
+        // Folder picker (click-to-browse — batch limit applies)
         document.getElementById('imageInput').addEventListener('change', (e) => {
             this.isAzureMode = false;
-            this.loadImages(e.target.files);
+            this.loadImages(e.target.files, false, true);
+            e.target.value = '';
         });
         document.getElementById('maskInput').addEventListener('change', (e) => {
-            this.loadMasks(e.target.files);
+            this.loadMasks(e.target.files, false, true);
+            e.target.value = '';
         });
         
         // Azure Cloud Loader
@@ -376,6 +395,11 @@ export class ModernImageOverlayApp {
         
         document.getElementById('autoAdvanceCheckbox').addEventListener('change', (e) => {
             this.autoAdvance = e.target.checked;
+            this.persistSettings();
+        });
+        document.getElementById('maxBatchSizeInput').addEventListener('change', (e) => {
+            this.maxBatchSize = Math.max(0, parseInt(e.target.value) || 0);
+            e.target.value = this.maxBatchSize;
             this.persistSettings();
         });
         document.getElementById('nextPendingBtn').addEventListener('click', () => this.jumpToNextPending());
@@ -591,8 +615,12 @@ export class ModernImageOverlayApp {
             this.projectId = this.computeProjectId();
             
             this.updateSessionWithImages();
-            
-            if (!this.tryRestoreFromLocalStorage()) {
+
+            if (this.pendingNewSession) {
+                localStorage.removeItem(this.projectId);
+                this.pendingNewSession = false;
+                this.saveToLocalStorage();
+            } else if (!this.tryRestoreFromLocalStorage()) {
                 this.saveToLocalStorage();
             }
             
@@ -612,14 +640,46 @@ export class ModernImageOverlayApp {
         }
     }
     
-    async loadImages(files) {
-        const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    async loadImages(files, isBatchAppend = false, fromDirectory = false) {
+        let imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
         if (!imageFiles.length) return;
 
-        let append = false;
-        if (this.images.length > 0) {
+        // Enforce batch size only for directory loads
+        if (!isBatchAppend && fromDirectory && this.maxBatchSize > 0 && imageFiles.length > this.maxBatchSize) {
+            this.pendingImageFiles = imageFiles.slice(this.maxBatchSize);
+            imageFiles = imageFiles.slice(0, this.maxBatchSize);
+        } else if (!isBatchAppend) {
+            this.pendingImageFiles = [];
+        }
+
+        // Store all directory files (sorted) and reset batch offset for new directory loads
+        if (!isBatchAppend && fromDirectory) {
+            this.allDirectoryFiles = [...imageFiles, ...this.pendingImageFiles].sort((a, b) => a.name.localeCompare(b.name));
+            this.batchOffset = 0;
+        }
+
+        // If restoring a session, jump directly to the batch containing the target image
+        if (!isBatchAppend && fromDirectory && this.deferredRestore?.lastViewedFilename && this.maxBatchSize > 0) {
+            const target = this.deferredRestore.lastViewedFilename;
+            const allFiles = this.allDirectoryFiles;
+            const targetIdx = allFiles.findIndex(f => f.name === target);
+            if (targetIdx >= 0) {
+                const batchStart = Math.floor(targetIdx / this.maxBatchSize) * this.maxBatchSize;
+                imageFiles = allFiles.slice(batchStart, batchStart + this.maxBatchSize);
+                this.pendingImageFiles = allFiles.slice(batchStart + this.maxBatchSize);
+                this.batchOffset = batchStart;
+            }
+        }
+
+        const totalDropped = imageFiles.length + this.pendingImageFiles.length;
+
+        let append = isBatchAppend;
+        if (!isBatchAppend && this.images.length > 0) {
             const choice = await this.showLoadConfirm(this.images.length, 'Images');
-            if (choice === 'cancel') return;
+            if (choice === 'cancel') {
+                this.pendingImageFiles = [];
+                return;
+            }
             append = choice === 'append';
         }
 
@@ -629,17 +689,22 @@ export class ModernImageOverlayApp {
 
         progressBar.style.display = 'block';
         progressFill.style.width = '0%';
-        statusDiv.textContent = 'Loading images...';
+
+        if (this.pendingImageFiles.length > 0) {
+            statusDiv.textContent = `Loading first ${imageFiles.length} of ${totalDropped} images...`;
+        } else {
+            statusDiv.textContent = 'Loading images...';
+        }
 
         if (!append) this.images = [];
-        
+
         for (let i = 0; i < imageFiles.length; i++) {
             const file = imageFiles[i];
             const img = new Image();
             const url = URL.createObjectURL(file);
-            
+
             statusDiv.textContent = `Loading image ${i + 1}/${imageFiles.length}: ${file.name}`;
-            
+
             await new Promise((resolve) => {
                 img.onload = () => {
                     this.images.push({
@@ -647,7 +712,7 @@ export class ModernImageOverlayApp {
                         name: file.name,
                         url: url
                     });
-                    
+
                     const progress = ((i + 1) / imageFiles.length) * 100;
                     progressFill.style.width = progress + '%';
                     resolve();
@@ -657,53 +722,109 @@ export class ModernImageOverlayApp {
                 };
                 img.src = url;
             });
-            
+
             await new Promise(resolve => setTimeout(resolve, 20));
         }
-        
+
         progressBar.style.display = 'none';
         statusDiv.textContent = `✅ Loaded ${this.images.length} images`;
-        
+
         this.images.sort((a, b) => a.name.localeCompare(b.name));
         if (!append) this.currentIndex = 0;
 
-        const { discardedImages, discardedMasks } = this._reconcileImageMaskPairs();
+        // Only reconcile when all batches (images and masks) are loaded
+        const inBatchMode = this.pendingImageFiles.length > 0 || this.pendingMaskFiles.length > 0;
 
-        this.stats.total = this.images.length;
-        this.projectId = this.computeProjectId();
+        if (!inBatchMode) {
+            const { discardedImages, discardedMasks } = this._reconcileImageMaskPairs();
 
-        this.updateSessionWithImages();
+            this.stats.total = this.images.length;
+            this.projectId = this.computeProjectId();
+            this.updateSessionWithImages();
 
-        if (!this.tryRestoreFromLocalStorage()) {
-            this.saveToLocalStorage();
-        }
+            if (this.pendingNewSession) {
+                localStorage.removeItem(this.projectId);
+                this.pendingNewSession = false;
+                this.saveToLocalStorage();
+            } else if (!this.tryRestoreFromLocalStorage()) {
+                this.saveToLocalStorage();
+            }
 
-        if (discardedImages > 0 || discardedMasks > 0) {
-            const parts = [];
-            if (discardedImages > 0) parts.push(`${discardedImages} image${discardedImages > 1 ? 's' : ''}`);
-            if (discardedMasks > 0) parts.push(`${discardedMasks} mask${discardedMasks > 1 ? 's' : ''}`);
-            this.showToast(`Loaded ${this.images.length} images — discarded ${parts.join(' and ')} without a match`);
+            if (discardedImages > 0 || discardedMasks > 0) {
+                const parts = [];
+                if (discardedImages > 0) parts.push(`${discardedImages} image${discardedImages > 1 ? 's' : ''}`);
+                if (discardedMasks > 0) parts.push(`${discardedMasks} mask${discardedMasks > 1 ? 's' : ''}`);
+                this.showToast(`Loaded ${this.images.length} images — discarded ${parts.join(' and ')} without a match`);
+            } else {
+                this.showToast(`Loaded ${this.images.length} images`);
+            }
         } else {
-            this.showToast(`Loaded ${this.images.length} images`);
+            this.stats.total = this.images.length;
+            this.projectId = this.computeProjectId();
+            this.updateSessionWithImages();
+
+            if (this.pendingNewSession) {
+                localStorage.removeItem(this.projectId);
+                this.pendingNewSession = false;
+                this.saveToLocalStorage();
+            } else if (!this.tryRestoreFromLocalStorage()) {
+                this.saveToLocalStorage();
+            }
+
+            this.showToast(`Loaded first ${imageFiles.length} of ${totalDropped} images — ${this.pendingImageFiles.length} remaining`);
         }
+
         this.updateUI();
         this.resizeCanvas();
         this.drawImage();
 
-        if (this.masks.length === 0) {
+        if (this.deferredRestore) {
+            const target = this.deferredRestore.lastViewedFilename;
+            const idx = target ? this.images.findIndex(im => im.name === target) : -1;
+            this.currentIndex = idx >= 0
+                ? idx
+                : Math.min(Math.max(0, this.deferredRestore.currentIndex), Math.max(0, this.images.length - 1));
+            this.deferredRestore = null;
+            this.resetView();
+            this.drawImage();
+            this.updateUI();
+        }
+
+        if (!isBatchAppend && !inBatchMode && this.masks.length === 0) {
             const maskFiles = await this.showMaskUploadModal();
             if (maskFiles) await this.loadMasks(maskFiles);
         }
     }
     
-    async loadMasks(files) {
-        const maskFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    async loadMasks(files, isBatchAppend = false, fromDirectory = false) {
+        let maskFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
         if (!maskFiles.length) return;
 
-        let append = false;
-        if (this.masks.length > 0) {
+        // Enforce batch size only for directory loads
+        if (!isBatchAppend && fromDirectory && this.maxBatchSize > 0 && maskFiles.length > this.maxBatchSize) {
+            this.pendingMaskFiles = maskFiles.slice(this.maxBatchSize);
+            maskFiles = maskFiles.slice(0, this.maxBatchSize);
+        } else if (!isBatchAppend) {
+            this.pendingMaskFiles = [];
+        }
+
+        // If images were session-restored to a non-first batch, jump mask loading to match
+        if (!isBatchAppend && fromDirectory && this.batchOffset > 0 && this.maxBatchSize > 0) {
+            const allSortedMasks = [...maskFiles, ...this.pendingMaskFiles].sort((a, b) => a.name.localeCompare(b.name));
+            const jumpStart = Math.min(this.batchOffset, allSortedMasks.length);
+            maskFiles = allSortedMasks.slice(jumpStart, jumpStart + this.maxBatchSize);
+            this.pendingMaskFiles = allSortedMasks.slice(jumpStart + this.maxBatchSize);
+        }
+
+        const totalDropped = maskFiles.length + this.pendingMaskFiles.length;
+
+        let append = isBatchAppend;
+        if (!isBatchAppend && this.masks.length > 0) {
             const choice = await this.showLoadConfirm(this.masks.length, 'Masks');
-            if (choice === 'cancel') return;
+            if (choice === 'cancel') {
+                this.pendingMaskFiles = [];
+                return;
+            }
             append = choice === 'append';
         }
 
@@ -713,20 +834,25 @@ export class ModernImageOverlayApp {
 
         progressBar.style.display = 'block';
         progressFill.style.width = '0%';
-        statusDiv.textContent = 'Loading masks...';
+
+        if (this.pendingMaskFiles.length > 0) {
+            statusDiv.textContent = `Loading first ${maskFiles.length} of ${totalDropped} masks...`;
+        } else {
+            statusDiv.textContent = 'Loading masks...';
+        }
 
         if (!append) {
             this.masks = [];
             this.masksMap.clear();
         }
-        
+
         for (let i = 0; i < maskFiles.length; i++) {
             const file = maskFiles[i];
             const img = new Image();
             const url = URL.createObjectURL(file);
-            
+
             statusDiv.textContent = `Loading mask ${i + 1}/${maskFiles.length}: ${file.name}`;
-            
+
             await new Promise((resolve) => {
                 img.onload = () => {
                     const maskObj = {
@@ -736,7 +862,7 @@ export class ModernImageOverlayApp {
                     };
                     this.masks.push(maskObj);
                     this.masksMap.set(this.normalizeBase(file.name), maskObj);
-                    
+
                     const progress = ((i + 1) / maskFiles.length) * 100;
                     progressFill.style.width = progress + '%';
                     resolve();
@@ -746,33 +872,41 @@ export class ModernImageOverlayApp {
                 };
                 img.src = url;
             });
-            
+
             await new Promise(resolve => setTimeout(resolve, 20));
         }
-        
+
         progressBar.style.display = 'none';
         statusDiv.textContent = `✅ Loaded ${this.masks.length} masks`;
-        
+
         this.masks.sort((a, b) => a.name.localeCompare(b.name));
         this.masksMap.clear();
         for (const m of this.masks) {
             this.masksMap.set(this.normalizeBase(m.name), m);
         }
 
-        const { discardedImages, discardedMasks } = this._reconcileImageMaskPairs();
+        // Only reconcile when all batches (images and masks) are loaded
+        const inBatchMode = this.pendingMaskFiles.length > 0 || this.pendingImageFiles.length > 0;
 
-        if (discardedImages > 0 || discardedMasks > 0) {
-            const parts = [];
-            if (discardedMasks > 0) parts.push(`${discardedMasks} mask${discardedMasks > 1 ? 's' : ''}`);
-            if (discardedImages > 0) parts.push(`${discardedImages} image${discardedImages > 1 ? 's' : ''}`);
-            this.showToast(`Loaded ${this.masks.length} masks — discarded ${parts.join(' and ')} without a match`);
+        if (!inBatchMode) {
+            const { discardedImages, discardedMasks } = this._reconcileImageMaskPairs();
+
+            if (discardedImages > 0 || discardedMasks > 0) {
+                const parts = [];
+                if (discardedMasks > 0) parts.push(`${discardedMasks} mask${discardedMasks > 1 ? 's' : ''}`);
+                if (discardedImages > 0) parts.push(`${discardedImages} image${discardedImages > 1 ? 's' : ''}`);
+                this.showToast(`Loaded ${this.masks.length} masks — discarded ${parts.join(' and ')} without a match`);
+            } else {
+                this.showToast(`Loaded ${this.masks.length} masks`);
+            }
         } else {
-            this.showToast(`Loaded ${this.masks.length} masks`);
+            this.showToast(`Loaded first ${maskFiles.length} of ${totalDropped} masks — ${this.pendingMaskFiles.length} remaining`);
         }
+
         this.updateUI();
         this.drawImage();
 
-        if (this.images.length === 0) {
+        if (!isBatchAppend && !inBatchMode && this.images.length === 0) {
             const imageFiles = await this.showImageUploadModal();
             if (imageFiles) await this.loadImages(imageFiles);
         }
@@ -845,6 +979,15 @@ export class ModernImageOverlayApp {
         this.masks = [];
         this.masksMap.clear();
         this.currentIndex = 0;
+        this.pendingImageFiles = [];
+        this.pendingMaskFiles = [];
+        this.allDirectoryFiles = [];
+        this.batchOffset = 0;
+        this.deferredRestore = null;
+        this.pendingNewSession = true;
+        this.loadedSessionTotal = 0;
+        document.getElementById('imageLoadStatus').textContent = '';
+        document.getElementById('maskLoadStatus').textContent = '';
         this.updateSessionWithImages();
         
         if (this.projectId) {
@@ -866,10 +1009,12 @@ export class ModernImageOverlayApp {
             transparentBackground: this.transparentBackground,
             transparency: this.transparency,
             autoAdvance: this.autoAdvance,
+            maxBatchSize: this.maxBatchSize,
             currentIndex: this.currentIndex,
             lastViewedFilename: this.images[this.currentIndex] ? this.images[this.currentIndex].name : null
         };
         this.saveToLocalStorage();
+        this.saveUserPrefs();
     }
     
     saveSession() {
@@ -950,21 +1095,25 @@ export class ModernImageOverlayApp {
                         this.currentIndex = Math.min(Math.max(0, settings.currentIndex), Math.max(0, this.images.length - 1));
                     }
                     
+                    this.loadedSessionTotal = Object.keys(classifications).length;
                     this.updateStats();
                     this.updateUI();
                     this.updateSessionStatus();
                     this.drawImage();
                     this.saveToLocalStorage();
-                    
+
                     this.showToast(`Session loaded (${Object.keys(classifications).length} images)`);
                 } else {
+                    this.loadedSessionTotal = Object.keys(classifications).length;
                     this.deferredRestore = {
-                        settings,
-                        currentIndex: settings.currentIndex || 0,
-                        lastViewedFilename: settings.lastViewedFilename || null
+                        lastViewedFilename: settings.lastViewedFilename || null,
+                        currentIndex: settings.currentIndex || 0
                     };
-                    this.showToast('Session settings queued. Load images to apply.');
+                    if (settings) this.applySettings(settings);
+                    this.showToast(`Session loaded (${Object.keys(classifications).length} images). Select a directory to resume.`);
                 }
+
+                document.getElementById('optionsModal').classList.remove('open');
                 
             } catch (error) {
                 console.error('Error loading session:', error);
@@ -988,20 +1137,17 @@ export class ModernImageOverlayApp {
         this.updateCurrentImageStatus();
         this.updateUI();
         this.persistSettings();
-        
-        if (this.findNextPendingIndex(0) === -1) {
-            this.showToast('End of image stack. Load more to continue.');
-        } else {
-            this.showToast(`Image ${status}`);
-        }
     }
     
     afterActionAdvance() {
         if (!this.autoAdvance) return;
-        const nextPendingIdx = this.findNextPendingIndex(this.currentIndex + 1);
-        if (nextPendingIdx !== -1) {
-            this.currentIndex = nextPendingIdx;
-        } else if (this.currentIndex < this.images.length - 1) {
+
+        if (this.currentIndex >= this.images.length - 1 && this.pendingImageFiles.length > 0) {
+            this.showNextBatchModal();
+            return;
+        }
+
+        if (this.currentIndex < this.images.length - 1) {
             this.currentIndex++;
         }
         this.resetView();
@@ -1176,7 +1322,7 @@ export class ModernImageOverlayApp {
             ctx.fillStyle = '#9ca3af';
             ctx.font = '15px var(--font-body), sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('No images loaded. Drag files or fetch from Azure to begin.', this.canvas.width / 2, this.canvas.height / 2);
+            ctx.fillText('No images loaded. Drag and drop files or select a directory to begin.', this.canvas.width / 2, this.canvas.height / 2);
             return;
         }
         
@@ -1396,7 +1542,47 @@ export class ModernImageOverlayApp {
             this.updateUI();
             this.updateCurrentImageStatus();
             this.persistSettings();
+        } else if (this.batchOffset > 0) {
+            this.loadPreviousBatch();
         }
+    }
+
+    async loadPreviousBatch() {
+        if (!this.allDirectoryFiles.length || this.batchOffset <= 0) return;
+        const batchSize = this.maxBatchSize || this.allDirectoryFiles.length;
+        const oldBatchOffset = this.batchOffset;
+        const newBatchOffset = Math.max(0, oldBatchOffset - batchSize);
+        const prevFiles = this.allDirectoryFiles.slice(newBatchOffset, oldBatchOffset);
+
+        // Old batch and everything forward becomes pending
+        this.pendingImageFiles = this.allDirectoryFiles.slice(oldBatchOffset);
+        this.batchOffset = newBatchOffset;
+        this.images = [];
+
+        const statusDiv = document.getElementById('imageLoadStatus');
+        if (statusDiv) statusDiv.textContent = `Loading previous batch...`;
+
+        for (let i = 0; i < prevFiles.length; i++) {
+            const file = prevFiles[i];
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            await new Promise((resolve) => {
+                img.onload = () => { this.images.push({ img, name: file.name, url }); resolve(); };
+                img.onerror = () => resolve();
+                img.src = url;
+            });
+        }
+
+        this.images.sort((a, b) => a.name.localeCompare(b.name));
+        this.currentIndex = this.images.length - 1;
+
+        this.updateStats();
+        this.resetView();
+        this.drawImage();
+        this.updateUI();
+        this.updateCurrentImageStatus();
+        this.persistSettings();
+        if (statusDiv) statusDiv.textContent = `✅ Loaded ${prevFiles.length} images`;
     }
     
     nextImage() {
@@ -1407,6 +1593,8 @@ export class ModernImageOverlayApp {
             this.updateUI();
             this.updateCurrentImageStatus();
             this.persistSettings();
+        } else if (this.pendingImageFiles.length > 0) {
+            this.showNextBatchModal();
         }
     }
     
@@ -1806,10 +1994,12 @@ This archive contains the sorted results of your Geominds image analysis session
         // Update navigation buttons
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
-        if (prevBtn) prevBtn.disabled = !hasImages || this.currentIndex <= 0;
-        if (nextBtn) nextBtn.disabled = !hasImages || this.currentIndex >= this.images.length - 1;
-        document.getElementById('navPrevBtn').disabled = !hasImages || this.currentIndex <= 0;
-        document.getElementById('navNextBtn').disabled = !hasImages || this.currentIndex >= this.images.length - 1;
+        const canGoPrev = this.currentIndex > 0 || this.batchOffset > 0;
+        if (prevBtn) prevBtn.disabled = !hasImages || !canGoPrev;
+        const canGoNext = this.currentIndex < this.images.length - 1 || this.pendingImageFiles.length > 0;
+        if (nextBtn) nextBtn.disabled = !hasImages || !canGoNext;
+        document.getElementById('navPrevBtn').disabled = !hasImages || !canGoPrev;
+        document.getElementById('navNextBtn').disabled = !hasImages || !canGoNext;
         document.getElementById('nextPendingBtn').disabled = this.findNextPendingIndex(0) === -1;
         
         // Update action buttons
@@ -1818,9 +2008,10 @@ This archive contains the sorted results of your Geominds image analysis session
         document.getElementById('createSubsetBtn').disabled = !hasImages;
         document.getElementById('downloadProjectBtn').disabled = !hasImages;
         
-        // Update statistics
-        document.getElementById('currentIndex').textContent = hasImages ? this.currentIndex + 1 : 0;
-        document.getElementById('totalImages').textContent = this.images.length;
+        // Update statistics — denominator is images loaded so far; grows with appended batches; respects explicit session total
+        const accumulatedTotal = Math.max(this.images.length, this.loadedSessionTotal);
+        document.getElementById('currentIndex').textContent = hasImages ? this.batchOffset + this.currentIndex + 1 : 0;
+        document.getElementById('totalImages').textContent = accumulatedTotal;
         document.getElementById('approvedCount').textContent = this.stats.approved;
         document.getElementById('rejectedCount').textContent = this.stats.rejected;
         document.getElementById('skippedCount').textContent = this.stats.skipped;
@@ -1830,7 +2021,9 @@ This archive contains the sorted results of your Geominds image analysis session
         const imageInfo = document.getElementById('imageInfo');
         if (hasImages) {
             const currentImage = this.images[this.currentIndex];
-            imageInfo.textContent = `${currentImage.name} (${this.currentIndex + 1}/${this.images.length})`;
+            const accumulatedCount = Math.max(this.images.length, this.loadedSessionTotal);
+            const globalIndex = this.batchOffset + this.currentIndex + 1;
+            imageInfo.textContent = `${currentImage.name} (${globalIndex}/${accumulatedCount})`;
         } else {
             imageInfo.textContent = 'No images loaded';
         }
@@ -1969,6 +2162,72 @@ This archive contains the sorted results of your Geominds image analysis session
                 `${this.images.length} images loaded. Upload their corresponding mask files.`;
             document.getElementById('maskUploadModal').classList.add('open');
         });
+    }
+
+    saveUserPrefs() {
+        try {
+            localStorage.setItem('geominds_overlay_user_prefs', JSON.stringify({
+                maxBatchSize: this.maxBatchSize,
+                autoAdvance: this.autoAdvance,
+                transparency: this.transparency,
+                maskClasses: this.maskClasses,
+                backgroundColor: this.backgroundColor,
+                transparentBackground: this.transparentBackground,
+            }));
+        } catch (e) {}
+    }
+
+    loadUserPrefs() {
+        try {
+            const raw = localStorage.getItem('geominds_overlay_user_prefs');
+            if (!raw) return;
+            this.applySettings(JSON.parse(raw));
+        } catch (e) {}
+    }
+
+    showNextBatchModal() {
+        const batchSize = this.maxBatchSize || Infinity;
+        const nextImages = Math.min(batchSize, this.pendingImageFiles.length);
+        const nextMasks = Math.min(batchSize, this.pendingMaskFiles.length);
+
+        let msg = `You've reached the end of this batch. Load the next ${nextImages} image${nextImages !== 1 ? 's' : ''}`;
+        if (nextMasks > 0) msg += ` and ${nextMasks} mask${nextMasks !== 1 ? 's' : ''}`;
+        msg += `? (${this.pendingImageFiles.length} image${this.pendingImageFiles.length !== 1 ? 's' : ''} remaining)`;
+
+        const modal = document.getElementById('nextBatchModal');
+        document.getElementById('nextBatchMessage').textContent = msg;
+        modal.classList.add('open');
+
+        const close = () => {
+            modal.classList.remove('open');
+            document.removeEventListener('keydown', onKey);
+        };
+
+        const load = async () => {
+            close();
+            const prevLength = this.images.length;
+            const imageBatch = this.pendingImageFiles.splice(0, this.maxBatchSize || this.pendingImageFiles.length);
+            const maskBatch = this.pendingMaskFiles.splice(0, this.maxBatchSize || this.pendingMaskFiles.length);
+            await this.loadImages(imageBatch, true);
+            if (maskBatch.length > 0) await this.loadMasks(maskBatch, true);
+            if (this.images.length > prevLength) {
+                this.currentIndex = prevLength;
+                this.resetView();
+                this.drawImage();
+                this.updateUI();
+            }
+        };
+
+        const onKey = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); load(); }
+            else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+        document.getElementById('nextBatchModalCloseBtn').onclick = close;
+        document.getElementById('nextBatchCancelBtn').onclick = close;
+        document.getElementById('nextBatchLoadBtn').onclick = load;
+        document.addEventListener('keydown', onKey);
     }
 
     showLoadConfirm(existingCount, type) {
