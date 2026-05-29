@@ -35,7 +35,11 @@ export const sessionMixin = {
                     const c = this.sessionData.classifications[data.lastViewedFilename];
                     if (c && c.status !== 'pending') {
                         const nextPending = this.findNextPendingIndex(idx + 1);
-                        this.currentIndex = nextPending >= 0 ? nextPending : idx;
+                        if (nextPending >= 0) {
+                            this.currentIndex = nextPending;
+                        } else {
+                            this.currentIndex = this.pendingImageFiles.length > 0 ? this.images.length - 1 : idx;
+                        }
                     } else {
                         this.currentIndex = idx;
                     }

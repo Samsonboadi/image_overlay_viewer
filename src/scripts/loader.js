@@ -253,7 +253,9 @@ export const loaderMixin = {
                 if (idx >= 0) {
                     const c = this.sessionData.classifications[lastViewedFilename];
                     targetIdx = (c && c.status !== 'pending') ? this.findNextPendingIndex(idx + 1) : idx;
-                    if (targetIdx === -1) targetIdx = idx;
+                    if (targetIdx === -1) {
+                        targetIdx = this.pendingImageFiles.length > 0 ? this.images.length - 1 : idx;
+                    }
                 }
             }
             if (targetIdx === -1) {

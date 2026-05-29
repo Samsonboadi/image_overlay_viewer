@@ -214,10 +214,16 @@ export const modalsMixin = {
                 await this.loadImages(imageBatch, true);
                 if (maskBatch.length > 0) await this.loadMasks(maskBatch, true);
                 if (this.images.length > prevLength) {
-                    this.currentIndex = prevLength;
+                    let newIdx = prevLength;
+                    for (let i = prevLength; i < this.images.length; i++) {
+                        const c = this.sessionData.classifications[this.images[i].name];
+                        if (!c || c.status === 'pending') { newIdx = i; break; }
+                    }
+                    this.currentIndex = newIdx;
                     this.resetView();
                     this.drawImage();
                     this.updateUI();
+                    this.persistSettings();
                 }
                 return;
             }
@@ -234,6 +240,7 @@ export const modalsMixin = {
                     this.resetView();
                     this.drawImage();
                     this.updateUI();
+                    this.persistSettings();
                     return;
                 }
             }
